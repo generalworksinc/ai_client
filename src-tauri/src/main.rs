@@ -39,12 +39,6 @@ pub fn create_client() -> reqwest::Client {
     return client;
 }
 
-// Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 ////////ChatGPT API Response /////////////////////////////////////////////////////
 #[derive(Serialize, Deserialize)]
 struct ChatApiMessage {
@@ -290,7 +284,6 @@ fn main() {
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
-            greet,
             send_message,
             send_message_and_callback_stream,
             set_api_key,
