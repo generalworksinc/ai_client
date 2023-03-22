@@ -1,4 +1,6 @@
-# AI Base Desktop
+That's a brief summary of the app's description and how to use it. written by chatGPT.
+
+# AI Client
 
 This app is a simple application that utilizes the chatGPT3 API.
 
@@ -14,5 +16,3 @@ This app is a simple application that utilizes the chatGPT3 API.
 1. Obtain an API Key for chatGPT3.
 2. Configure the app settings with the obtained API Key.
 3. Start chatting with the chatbot.
-
-That's a brief summary of the app's description and how to use it.
