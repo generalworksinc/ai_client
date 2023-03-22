@@ -55,12 +55,19 @@ struct ChatApiSendMessage {
 }
 
 #[derive(Serialize, Deserialize)]
-struct Data {
-    id: String,
-    object: String,
-    created: i64,
-    model: String,
-    choices: Vec<Choice>,
+struct ChatGptResponseData {
+    error: Option<ChatGptError>,
+    id: Option<String>,
+    object: Option<String>,
+    created: Option<i64>,
+    model: Option<String>,
+    choices: Option<Vec<Choice>>,
+}
+#[derive(Serialize, Deserialize)]
+struct ChatGptError {
+    message: Option<String>,
+    #[serde(rename = "type")]
+    error_type: Option<String>,
 }
 #[derive(Serialize, Deserialize)]
 struct Choice {
@@ -207,32 +214,38 @@ async fn send_message_and_callback_stream(
             {
                 println!("trimed: {:?}", tmp_str.replace("[DONE]", "").trim());
 
-                let chatGptChunkData: Data =
+                let chatGptChunkData: ChatGptResponseData =
                     serde_json::from_str(tmp_str.replace("[DONE]", "").trim()).unwrap();
-                for choice in chatGptChunkData.choices {
-                    if let Some(content) = choice.delta.content {
-                        response_string.push_str(&content);
-                        println!(
-                            "markdown::to_html(&response_string):{:?}",
-                            markdown::to_html(&response_string)
-                        );
-                        window
-                            .emit("stream_chunk", markdown::to_html(&response_string))
-                            .unwrap();
-                    }
-                    if let Some(finish_reason) = choice.finish_reason {
-                        println!("finish_reason: {:?}", finish_reason);
-                        println!(
-                            "finish... markdown::to_html(&response_string):{:?}",
-                            markdown::to_html(&response_string)
-                        );
-                        window
-                            .emit("finish_chunks", response_string.clone())
-                            .unwrap();
+
+                if let Some(error) = chatGptChunkData.error {
+                    window
+                        .emit("stream_error", serde_json::to_string(&error).unwrap())
+                        .unwrap();
+                } else if let Some(choices) = chatGptChunkData.choices {
+                    for choice in choices {
+                        if let Some(content) = choice.delta.content {
+                            response_string.push_str(&content);
+                            println!(
+                                "markdown::to_html(&response_string):{:?}",
+                                markdown::to_html(&response_string)
+                            );
+                            window
+                                .emit("stream_chunk", markdown::to_html(&response_string))
+                                .unwrap();
+                        }
+                        if let Some(finish_reason) = choice.finish_reason {
+                            println!("finish_reason: {:?}", finish_reason);
+                            println!(
+                                "finish... markdown::to_html(&response_string):{:?}",
+                                markdown::to_html(&response_string)
+                            );
+                            window
+                                .emit("finish_chunks", response_string.clone())
+                                .unwrap();
+                        }
                     }
                 }
             }
-
             future::ready(())
         })
         .await;
@@ -249,6 +262,7 @@ fn init_config(app: &tauri::App) -> anyhow::Result<()> {
     let config_toml_file_path = chat_gpt_config_dir.join("config.toml");
 
     if (!config_toml_file_path.exists()) {
+        std::fs::create_dir_all(chat_gpt_config_dir.clone()).unwrap();
         let mut f = File::create(config_toml_file_path.clone()).unwrap();
         let config_file = toml::to_string(&Config::default()).unwrap();
         f.write_all(config_file.as_bytes())
@@ -261,7 +275,7 @@ fn init_config(app: &tauri::App) -> anyhow::Result<()> {
         let mut config: Config =
             toml::from_str(String::from_utf8(config_data).unwrap().as_str()).unwrap();
         unsafe {
-            API_KEY = config.keys.chatgpt.unwrap();
+            API_KEY = config.keys.chatgpt.unwrap_or_default();
         }
     }
     Ok(())

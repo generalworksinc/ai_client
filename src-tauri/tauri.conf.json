@@ -27,7 +27,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "jp.co.generalworks.ai-base-desktop",
+      "identifier": "jp.co.generalworks.ai-client",
       "targets": "all"
     },
     "security": {
@@ -40,7 +40,7 @@
       {
         "fullscreen": false,
         "resizable": true,
-        "title": "ai_base_desktop",
+        "title": "ai_client",
         "width": 800,
         "height": 600
       }

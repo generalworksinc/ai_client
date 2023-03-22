@@ -30,12 +30,12 @@ onMounted(async () => {
 
 <template>
     <div class="container">
-        <h1>AI base Desktop</h1>
+        <h1>AI Client</h1>
 
         <div class="row">
             <!-- <a href="https://vitejs.dev" target="_blank">
-                                                                                    <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-                                                                                </a> -->
+                                                                                        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
+                                                                                    </a> -->
             <a href="https://tauri.app" target="_blank">
                 <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
             </a>

@@ -19,6 +19,7 @@ let articleDom = null;
 
 let unlisten_stream_chunk = null;
 let unlisten_finish_chunks = null;
+let unlisten_stream_error = null;
 
 onUnmounted(async () => {
     if (unlisten_stream_chunk) {
@@ -27,11 +28,24 @@ onUnmounted(async () => {
     if (unlisten_finish_chunks) {
         unlisten_finish_chunks();
     }
+    if (unlisten_stream_error) {
+        unlisten_stream_error();
+    }
 });
 
 onMounted(async () => {
     articleDom = document.getElementById('article');
     //emits
+    unlisten_stream_error = await listen('stream_error', (event) => {
+        is_thinking.value = false;
+        const errorObj = JSON.parse(event.payload);
+        now_messaging.value = `<h3>${errorObj['type']}</h3><p>${errorObj['message']}</p>`;
+        nextTick(() => {
+            if (articleDom) {
+                articleDom.scrollTo(0, articleDom.scrollHeight);
+            }
+        });
+    });
     unlisten_stream_chunk = await listen('stream_chunk', (event) => {
         is_thinking.value = false;
         console.log('unlisten_finish_chunks called event.', event);
@@ -93,18 +107,20 @@ const sendMessageStream = () => {
     <div class="container">
         <h3>chatGPT3.5</h3>
         <div>click "send" or ctrl + enter to send message.</div>
-        <textarea type="text" v-model="message" @keypress.ctrl.enter="sendMessageStream"
-            style="width: 100%; height: 3rem; width: 80%;" />
-        <!-- <button @click="sendMessage">send</button> -->
-        <button @click="sendMessageStream">send</button>
+        <div style="display: flex; align-items: flex-end;">
+            <textarea type="text" v-model="message" @keypress.ctrl.enter="sendMessageStream"
+                style="height: 3rem; width: 80%;" />
+            <!-- <button @click="sendMessage">send</button> -->
+            <button @click="sendMessageStream">send</button>
+        </div>
 
         <div id="article" style="overflow-y: scroll; max-height: 70vh;">
-            <article v-for="(msg, ind) in all_messages" :key="'msg_' + ind">
+            <article v-for="(msg, ind) in all_messages" :key="'msg_' + ind" :style="ind > 0 ? 'margin-top: 2rem;' : ''">
                 <div v-if="msg.role == 'user'">
                     <div>
                         <span>You</span>
                     </div>
-                    <p style="white-space:pre;">{{ msg.content }}</p>
+                    <div style="white-space:pre;">{{ msg.content }}</div>
                 </div>
                 <div v-else>
                     <div>
@@ -119,7 +135,7 @@ const sendMessageStream = () => {
                     </button>
                 </div>
             </article>
-            <article v-show="is_thinking || now_messaging">
+            <article v-show="is_thinking || now_messaging" style="margin-top: 2rem;">
                 <div><span>chatGPT</span></div>
                 <div v-if="now_messaging" v-html="now_messaging"></div>
                 <p v-else>I'm thinking...</p>

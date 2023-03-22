@@ -16,3 +16,7 @@ This app is a simple application that utilizes the chatGPT3 API.
 1. Obtain an API Key for chatGPT3.
 2. Configure the app settings with the obtained API Key.
 3. Start chatting with the chatbot.
+
+![image](https://user-images.githubusercontent.com/12643025/226862947-87b97fb7-ca7d-46d6-9c29-755864c4b9ce.png)
+
+![image](https://user-images.githubusercontent.com/12643025/226863169-dcd9be73-47ed-4975-8b2d-f6cd263106f7.png)
