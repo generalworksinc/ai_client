@@ -77,6 +77,9 @@ onMounted(async () => {
 });
 
 //methods
+const new_chat = () => {
+    window.location.reload();
+}
 const toggleDisplay = (index) => {
     const ind = disp_raw_text_indexes.value.indexOf(index);
     if (ind >= 0) {
@@ -105,7 +108,11 @@ const sendMessageStream = () => {
 
 <template>
     <div class="container">
-        <h3>chatGPT3.5</h3>
+        <div style="display: flex; justify-content: space-between;">
+            <h3>chatGPT3.5</h3>
+            <button @click="new_chat">new chat</button>
+        </div>
+
         <div>click "send" or ctrl + enter to send message.</div>
         <div style="display: flex; align-items: flex-end;">
             <textarea type="text" v-model="message" @keypress.ctrl.enter="sendMessageStream"
