@@ -124,13 +124,13 @@ const ROLES = ['user', 'system'];
             <button @click="new_chat">new chat</button>
         </div>
 
-        <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES">
+        <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES" :key="'role_' + role">
                 <input type="radio" v-model="send_role" :value="role" />{{ role }}
             </label></div>
         <div>tempareture: <input type="text" v-model="tempareture"></div>
         <div style="display: flex; align-items: flex-end;">
-            <textarea type="text" v-model="message" @keyup.ctrl.enter="sendMessageStream"
-                style="height: 3rem; width: 80%;" />
+            <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
+                style="height: 3rem; width: 80%;" ></textarea>
             <!-- <button @click="sendMessage">send</button> -->
             <button @click="sendMessageStream">send</button>
         </div>
