@@ -17,6 +17,7 @@ const is_thinking = ref(false);
 const disp_raw_text_indexes = ref([]);
 const send_role = ref("user");
 const tempareture = ref(0.9);
+const template = ref("");
 let articleDom = null;
 
 let unlisten_stream_chunk = null;
@@ -79,6 +80,9 @@ onMounted(async () => {
 });
 
 //methods
+const add_template = () => {    
+    message.value += "\n" + template.value;
+}
 const new_chat = () => {
     window.location.reload();
 }
@@ -115,6 +119,9 @@ const sendMessageStream = () => {
 }
 
 const ROLES = ['user', 'system'];
+const TEMPLATES = [
+    // "論理的かつstep by stepに考えよ", 
+    "Let's think logically, step by step. ", "First,", "Let's think about this logically.", "Let's solve this problem by splitting it into steps."]
 </script>
 
 <template>
@@ -127,7 +134,7 @@ const ROLES = ['user', 'system'];
         <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES" :key="'role_' + role">
                 <input type="radio" v-model="send_role" :value="role" />{{ role }}
             </label></div>
-        <div>tempareture: <input type="text" v-model="tempareture"></div>
+        <div>tempareture: <input type="text" v-model="tempareture"><button @click="add_template">add template</button><select v-model="template"><option v-for="value in TEMPLATES" :value="value" :key="'template_' + value">{{ value }}</option></select></div>
         <div style="display: flex; align-items: flex-end;">
             <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
                 style="height: 3rem; width: 80%;" ></textarea>
