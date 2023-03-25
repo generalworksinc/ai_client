@@ -80,7 +80,7 @@ onMounted(async () => {
 });
 
 //methods
-const add_template = () => {    
+const add_template = () => {
     message.value += "\n" + template.value;
 }
 const new_chat = () => {
@@ -97,6 +97,10 @@ const toggleDisplay = (index) => {
 }
 const translateToJp = () => {
     message.value = "translate to japanese below.\n" + message.value;
+    sendMessageStream();
+}
+const translateToEn = () => {
+    message.value = "translate to English below.\n" + message.value;
     sendMessageStream();
 }
 const sendMessageStream = () => {
@@ -138,13 +142,17 @@ const TEMPLATES = [
         <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES" :key="'role_' + role">
                 <input type="radio" v-model="send_role" :value="role" />{{ role }}
             </label></div>
-        <div>tempareture: <input type="text" v-model="tempareture"><button @click="add_template">add template</button><select v-model="template"><option v-for="value in TEMPLATES" :value="value" :key="'template_' + value">{{ value }}</option></select></div>
+        <div>tempareture: <input type="text" v-model="tempareture"><button @click="add_template">add
+                template</button><select v-model="template">
+                <option v-for="value in TEMPLATES" :value="value" :key="'template_' + value">{{ value }}</option>
+            </select></div>
         <div style="display: flex; align-items: flex-end;">
             <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
-                style="height: 3rem; width: 80%;" ></textarea>
+                style="height: 3rem; width: 80%;"></textarea>
             <!-- <button @click="sendMessage">send</button> -->
             <button @click="sendMessageStream">send</button>
-            <button @click="translateToJp">translate to Japanese</button>
+            <button @click="translateToJp">translate to Jp</button>
+            <button @click="translateToEn">translate to En</button>
         </div>
 
         <div id="article" style="overflow-y: scroll; max-height: 70vh;">
@@ -189,5 +197,4 @@ const TEMPLATES = [
 
 .logo.chatgpt:hover {
     filter: drop-shadow(0 0 2em #777);
-}
-</style>
+}</style>
