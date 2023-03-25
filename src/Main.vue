@@ -15,6 +15,8 @@ const all_messages_raw = ref([]);
 const now_messaging = ref("");
 const is_thinking = ref(false);
 const disp_raw_text_indexes = ref([]);
+const send_role = ref("user");
+const tempareture = ref(0.9);
 let articleDom = null;
 
 let unlisten_stream_chunk = null;
@@ -90,15 +92,15 @@ const toggleDisplay = (index) => {
 
 }
 const sendMessageStream = () => {
-    const userMessage = { 'role': 'user', 'content': message.value };
+    const userMessage = { 'role': send_role.value, 'content': message.value };
     all_messages.value.push(userMessage);
     now_messaging.value = "";
     message.value = '';
 
     invoke('send_message_and_callback_stream', {
-        message: JSON.stringify({
+        params: JSON.stringify({
             messages: all_messages.value,
-            model: "",
+            model: "gpt-3.5-turbo",
             temperature: 0.9,
             max_tokens: 1024,
         })
@@ -111,6 +113,8 @@ const sendMessageStream = () => {
         }
     });
 }
+
+const ROLES = ['user', 'system'];
 </script>
 
 <template>
@@ -120,7 +124,10 @@ const sendMessageStream = () => {
             <button @click="new_chat">new chat</button>
         </div>
 
-        <div>click "send" or ctrl + enter to send message.</div>
+        <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES">
+                <input type="radio" v-model="send_role" :value="role" />{{ role }}
+            </label></div>
+        <div>tempareture: <input type="text" v-model="tempareture"></div>
         <div style="display: flex; align-items: flex-end;">
             <textarea type="text" v-model="message" @keyup.ctrl.enter="sendMessageStream"
                 style="height: 3rem; width: 80%;" />
@@ -130,17 +137,18 @@ const sendMessageStream = () => {
 
         <div id="article" style="overflow-y: scroll; max-height: 70vh;">
             <article v-for="(msg, ind) in all_messages" :key="'msg_' + ind" :style="ind > 0 ? 'margin-top: 2rem;' : ''">
-                <div v-if="msg.role == 'user'">
+                <div v-if="msg.role == 'user' || 'system'">
                     <div>
-                        <span>You</span>
+                        <span v-if="msg.role == 'user'">You</span>
+                        <span v-if="msg.role == 'system'">System</span>
                     </div>
-                    <div style="white-space:pre;">{{ msg.content }}</div>
+                    <div style="white-space:pre-wrap;">{{ msg.content }}</div>
                 </div>
                 <div v-else>
                     <div>
                         <span>chatGPT</span>
                     </div>
-                    <p v-if="disp_raw_text_indexes.includes(ind)" style="white-space:pre;">{{ msg.content }}</p>
+                    <p v-if="disp_raw_text_indexes.includes(ind)" style="white-space:pre-wrap;">{{ msg.content }}</p>
                     <div v-else v-html="msg.content_html || msg.content"></div>
                     <button v-if="msg.content_html.replace('<p>', '').replace('</p>', '') != msg.content"
                         @click="toggleDisplay(ind)">

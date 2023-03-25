@@ -40,12 +40,12 @@ pub fn create_client() -> reqwest::Client {
 }
 
 ////////ChatGPT API Response /////////////////////////////////////////////////////
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct ChatApiMessage {
     role: String,
     content: String,
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 struct ChatApiSendMessage {
     model: String,
     max_tokens: u32,
@@ -200,6 +200,7 @@ async fn send_message_and_callback_stream(
         stream: true,
     };
 
+    println!("data: {:?}", data);
     let response = create_client()
         .post(format!("{}/completions", "https://api.openai.com/v1/chat",).to_string())
         .json(&data)
