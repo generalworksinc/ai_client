@@ -122,7 +122,7 @@ const sendMessageStream = () => {
 
         <div>click "send" or ctrl + enter to send message.</div>
         <div style="display: flex; align-items: flex-end;">
-            <textarea type="text" v-model="message" @keypress.ctrl.enter="sendMessageStream"
+            <textarea type="text" v-model="message" @keyup.ctrl.enter="sendMessageStream"
                 style="height: 3rem; width: 80%;" />
             <!-- <button @click="sendMessage">send</button> -->
             <button @click="sendMessageStream">send</button>
