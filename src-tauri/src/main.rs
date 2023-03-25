@@ -180,16 +180,23 @@ async fn send_message(app_handle: tauri::AppHandle, message: String) -> Result<S
 async fn send_message_and_callback_stream(
     window: Window,
     app_handle: tauri::AppHandle,
-    message: String,
+    params: String,
 ) -> Result<String, String> {
-    println!("call send_message! message:{message}");
-    let messages: Vec<ChatApiMessage> = serde_json::from_str(message.as_str()).unwrap();
+    #[derive(Deserialize)]
+    struct PostData {
+        model: Option<String>,
+        messages: Vec<ChatApiMessage>,
+        temperature: Option<f32>,
+        max_tokens: Option<u32>,
+    }
+    let postData = serde_json::from_str::<PostData>(params.as_str()).unwrap();
+    // let messages: Vec<ChatApiMessage> = serde_json::from_str(message.as_str()).unwrap();
 
     let data = ChatApiSendMessage {
-        model: "gpt-3.5-turbo".into(),
-        max_tokens: 1024,
-        temperature: 0.9f32,
-        messages: messages,
+        model: postData.model.unwrap_or("gpt-3.5-turbo".into()),
+        max_tokens: postData.max_tokens.unwrap_or(1024),
+        temperature: postData.temperature.unwrap_or(0.9f32),
+        messages: postData.messages,
         stream: true,
     };
 

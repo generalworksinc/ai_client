@@ -95,7 +95,14 @@ const sendMessageStream = () => {
     now_messaging.value = "";
     message.value = '';
 
-    invoke('send_message_and_callback_stream', { message: JSON.stringify(all_messages.value) }).then(async res => {
+    invoke('send_message_and_callback_stream', {
+        message: JSON.stringify({
+            messages: all_messages.value,
+            model: "",
+            temperature: 0.9,
+            max_tokens: 1024,
+        })
+    }).then(async res => {
         console.log('response.', res);
     });
     nextTick(() => {
