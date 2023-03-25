@@ -95,6 +95,10 @@ const toggleDisplay = (index) => {
     }
 
 }
+const translateToJp = () => {
+    message.value = "translate to japanese below.\n" + message.value;
+    sendMessageStream();
+}
 const sendMessageStream = () => {
     const userMessage = { 'role': send_role.value, 'content': message.value };
     all_messages.value.push(userMessage);
@@ -140,6 +144,7 @@ const TEMPLATES = [
                 style="height: 3rem; width: 80%;" ></textarea>
             <!-- <button @click="sendMessage">send</button> -->
             <button @click="sendMessageStream">send</button>
+            <button @click="translateToJp">translate to Japanese</button>
         </div>
 
         <div id="article" style="overflow-y: scroll; max-height: 70vh;">
