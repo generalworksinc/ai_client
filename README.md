@@ -19,4 +19,4 @@ This app is a simple application that utilizes the chatGPT3 API.
 
 ![image](https://user-images.githubusercontent.com/12643025/226862947-87b97fb7-ca7d-46d6-9c29-755864c4b9ce.png)
 
-![image](https://user-images.githubusercontent.com/12643025/226863169-dcd9be73-47ed-4975-8b2d-f6cd263106f7.png)
+![image](https://user-images.githubusercontent.com/12643025/227689800-059063d7-3dc6-4a2a-8eb0-f0592143eac4.png)
