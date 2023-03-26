@@ -128,8 +128,10 @@ const sendMessageStream = () => {
 
 const ROLES = ['user', 'system'];
 const TEMPLATES = [
-    // "論理的かつstep by stepに考えよ", 
-    "Let's think logically, step by step. ", "First,", "Let's think about this logically.", "Let's solve this problem by splitting it into steps."]
+    `If the question cannot be answered using the information provided answer with "I don't know"`,
+    "Let's think logically, step by step. ",
+     "First,", "Let's think about this logically.",
+      "Let's solve this problem by splitting it into steps."]
 </script>
 
 <template>
