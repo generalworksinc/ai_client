@@ -50,6 +50,11 @@ pub fn create_client() -> reqwest::Client {
 struct ChatApiMessage {
     role: String,
     content: String,
+}
+#[derive(Serialize, Deserialize, Debug)]
+struct ChatApiMessageWithHtml {
+    role: String,
+    content: String,
     content_html: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -302,7 +307,6 @@ async fn get_title(sentense: String) -> anyhow::Result<String> {
         messages: vec![ChatApiMessage {
             role: "user".into(),
             content: "Give it a simple title bellow text by own language. *Conditions=[Length<=20]. text>".to_string() + sentense.as_str(),
-            content_html: None,
         }],
         stream: false,
     };
@@ -349,7 +353,7 @@ async fn load_messages(
     let dir = unsafe{SAVING_DIRECTORY.clone()};
     let file_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSION).join(id.clone());
     if file_path.exists() {
-        let mut messages = serde_json::from_str::<Vec<ChatApiMessage>>(std::fs::read_to_string(file_path).unwrap_or_default().as_str()).unwrap();
+        let mut messages = serde_json::from_str::<Vec<ChatApiMessageWithHtml>>(std::fs::read_to_string(file_path).unwrap_or_default().as_str()).unwrap();
         for message in messages.iter_mut() {
             message.content_html = Some(markdown::to_html(message.content.as_str()).into());
         }
