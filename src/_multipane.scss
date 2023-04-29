@@ -1,0 +1,26 @@
+.multipane {
+  display: flex;
+  flex-direction: row;
+  height: 95vh;
+}
+
+.multipane>div {
+  position: relative;
+  z-index: 1;
+}
+
+.multipane-resizer {
+  display: block;
+  position: relative;
+  z-index: 2;
+  background-color: #ccc;
+
+  // max-height: 95%;
+  height: 100%;
+  border-left: #ccc solid;
+
+  width: 10px;
+  // margin-left: -10px;
+  // left: 5px;
+  cursor: col-resize;
+}

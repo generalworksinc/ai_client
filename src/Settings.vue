@@ -9,6 +9,7 @@ import { ref } from "vue";
 const router = useRouter();
 
 const api_key = ref("");
+const saving_directory = ref("");
 
 //methods
 const cancel = () => {
@@ -16,14 +17,16 @@ const cancel = () => {
     router.push("/");
 }
 const saveConfig = () => {
-    invoke('set_api_key', { value: api_key.value }).then(async res => {
+    invoke('set_api_key', { apiKey: api_key.value, savingDirectory: saving_directory.value }).then(async res => {
         router.push("/");
     });
 }
 onMounted(async () => {
     invoke('get_api_key', {}).then(async res => {
-        console.log('response.', res);
-        api_key.value = res;
+        const resJson = JSON.parse(res);
+        console.log('resJson:', resJson);
+        api_key.value = resJson.apiKey;
+        saving_directory.value = resJson.savingDirectory;
     });
 });
 </script>
@@ -51,6 +54,12 @@ onMounted(async () => {
                     Key:</label>
             </div>
             <input id="api_key" type="text" v-model="api_key" style="width: 100%;">
+        </div>
+        <div>
+            <div>
+                <label for="save_directory" style="width: 100px; vertical-align:bottom; white-space:nowrap;">Saving Directory: </label>
+            </div>
+            <input id="saving_directory" type="text" v-model="saving_directory" style="width: 100%;">
         </div>
         <div style="margin-top: 2rem; display:flex; justify-content: space-evenly; text-align: center;">
             <button @click="saveConfig">Save</button>
