@@ -335,7 +335,7 @@ async fn get_title(sentense: String) -> anyhow::Result<String> {
                 Err(anyhow::Error::msg("server error"))
             }
         };
-        title.map(|x| x.replace("「","").replace("」","").replace("。","").replace("\"","").trim().to_string())
+        title.map(|x| x.replace("Title:","").replace("「","").replace("」","").replace("。","").replace("\"","").trim().to_string())
     } else {
         // println!(
         //     "response: {:#?}",
