@@ -4,6 +4,8 @@
 use futures::future;
 use futures::stream::{self, StreamExt};
 use serde_json::Value;
+use std::f32::consts::E;
+use std::path::{PathBuf,Path};
 use std::fs::File;
 use std::io::{BufReader, Read, Write};
 use std::io::prelude::*;
@@ -15,11 +17,13 @@ use tauri::{Manager, Window, WindowUrl};
 use reqwest::{header, multipart, Body, Client};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc, TimeZone};
-
+use once_cell::sync::{Lazy, OnceCell};
 static mut API_KEY: String = String::new();
 static mut SAVING_DIRECTORY: String = String::new();
 const DIR_TITLE: &str = "titles";
-const DIR_CONVERSION: &str = "conversions";
+const DIR_CONVERSATION: &str = "conversations";
+
+pub static PATH_DIR_CHATGPT_CONFIG:  OnceCell<PathBuf> = OnceCell::new();
 
 pub fn create_client() -> reqwest::Client {
     // certificate使ってサーバからデータ取得する
@@ -132,11 +136,7 @@ struct TitleData {
 
 #[tauri::command]
 async fn set_api_key(app_handle: tauri::AppHandle, api_key: String, saving_directory: String) -> Result<String, String> {
-    let chat_gpt_config_dir = app_handle
-        .path_resolver()
-        .app_config_dir()
-        .unwrap()
-        .join("chatGPT");
+    let chat_gpt_config_dir = PATH_DIR_CHATGPT_CONFIG.get().unwrap();
 
     let config_toml_file_path = chat_gpt_config_dir.join("config.toml");
 
@@ -248,9 +248,10 @@ async fn save_chat(
     } else {
         uuid::Uuid::new_v4().to_string()
     };
-    // write_id and conversion.
+    // write_id and conversasion.
     let dir = unsafe{SAVING_DIRECTORY.clone()};
-    let content_dir_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSION);
+    let content_dir_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION);
+
     if !content_dir_path.exists() {
         if let Err(_) = std::fs::create_dir_all(content_dir_path.as_path()) {
             return Err("can't create title directory.".into());
@@ -283,21 +284,120 @@ async fn save_chat(
     }
     let mut title_f = File::create(title_file).unwrap();
     println!("title_content: {:#?}", title_content.clone());
-    match get_title(title_content.clone()).await {
-        Ok(title) => {
-            println!("title: {:#?}", title);
-            title_f.write_all(title.as_bytes()).unwrap();
-            Ok("".to_string())
+    if title_content.len() > 30 {
+        match get_title(title_content.clone()).await {
+            Ok(title) => {
+                println!("title: {:#?}", title);
+                title_f.write_all(title.as_bytes()).unwrap();
+            }
+            Err(err) => {
+                println!("err: {:#?}", err);
+                // title_f.write_all(title_content.as_bytes()).unwrap();
+                return Err("".to_string())
+            }
         }
-        Err(err) => {
-            println!("err: {:#?}", err);
-            // title_f.write_all(title_content.as_bytes()).unwrap();
-            Err("".to_string())
-        }
+    } else {
+        title_f.write_all(title_content.as_bytes()).unwrap();
     }
     
+    refresh_index_db().unwrap();
+    Ok("".to_string())
 }
 
+#[tauri::command]
+async fn reflesh_index(app_handle: tauri::AppHandle) -> Result<String, String> { 
+    refresh_index_db().unwrap();
+    Ok("".to_string())
+}
+fn from_u8_to_str(buf: &[u8]) -> &str{
+    let s = match std::str::from_utf8(buf) {
+      Ok(v) => v,
+      Err(e) => panic!("Invalid UTF-8 sequence: {}", e),
+    };
+    s
+  }
+#[tauri::command]
+async fn search_conversations(app_handle: tauri::AppHandle, word: String) -> Result<String, String> {
+    
+    //search sled database
+    let tree = sled::open(PATH_DIR_CHATGPT_CONFIG.get().unwrap().join("storage")).unwrap();
+    let title_tree = tree.open_tree("title").unwrap();
+    println!("word: {:#?}", word);
+    for entryResult in tree.iter() {
+        if let Ok((key, value)) = entryResult {
+            let key = from_u8_to_str(&key);
+            let id = from_u8_to_str(&value);
+            // println!("id: {:#?}", id);
+            // println!("body: {:#?}", key);
+        }
+    }
+
+    // Iterates over key-value pairs, starting at the given key.
+    
+    // let mut iter = tree.range(word.as_bytes()..);
+    let response = tree.iter().flatten().filter_map(|(key, value)| {
+        // println!("--------------------------------------------------------------------------------------------------------");
+        let body: String = std::str::from_utf8(&key).unwrap_or_default().to_string();
+        let is_contains = body.contains(word.as_str());
+        // let contains_binary = key.binary_search_by_key(|x| word.as_bytes());
+        // println!("is_contains: {:#?}", is_contains);
+        // println!("contains_binary: {:#?}", contains_binary);
+        if !is_contains {
+            return None;
+        }
+        let id: String = std::str::from_utf8(&value).unwrap_or_default().to_string();
+        let title = if let Ok(Some(title)) = title_tree.get(id.as_str()) {
+            std::str::from_utf8(&title).unwrap_or_default().to_string()
+        } else {
+            "".to_string()
+        };
+        println!("id: {:#?}", id);
+        Some(serde_json::json!({
+            "id": id, 
+            "title": title,  
+            "body": std::str::from_utf8(&key).unwrap_or_default().to_string(),
+        }))
+    }).collect::<serde_json::Value>();
+
+    //titl
+    Ok(response.to_string())
+}
+fn refresh_index_db() -> anyhow::Result<()> {
+    //save db from all conversations
+    let tree = sled::open(PATH_DIR_CHATGPT_CONFIG.get().unwrap().join("storage")).unwrap();
+    let title_tree = tree.open_tree("title")?;
+    tree.clear()?;
+    tree.flush()?;
+    title_tree.clear()?;
+    title_tree.flush()?;
+
+    //key: body, value: id
+    let dir = unsafe{SAVING_DIRECTORY.clone()};
+    let conversation_dir_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION);
+    if let Ok(read_dir) = conversation_dir_path.read_dir() {
+        for entry in read_dir.flatten() {
+            let file_path = entry.path();
+            let file_name = file_path.file_name().unwrap().to_string_lossy();
+            println!("file_name: {:#?}", file_name);
+            tree.insert( std::fs::read_to_string(&file_path)?.as_bytes(), file_name.as_bytes())?;
+        }
+    }
+
+    //key: id, value: title
+    let title_dir_path = std::path::Path::new(dir.as_str()).join(DIR_TITLE);
+    if let Ok(read_dir) = title_dir_path.read_dir() {
+        for entry in read_dir.flatten() {
+            let file_path = entry.path();
+            let file_name = file_path.file_name().unwrap().to_string_lossy();
+            let title = std::fs::read_to_string(&file_path)?;
+            println!("title {:#?}", title );
+            title_tree.insert(  file_name.as_bytes(), title.as_bytes())?;
+        }
+    }
+    title_tree.flush()?;
+    tree.flush()?;
+    Ok(())
+}
 //set title by chatGPT
 async fn get_title(sentense: String) -> anyhow::Result<String> {
     let data = ChatApiSendMessage {
@@ -351,7 +451,7 @@ async fn load_messages(
     id: String,
 ) -> Result<String, String> {
     let dir = unsafe{SAVING_DIRECTORY.clone()};
-    let file_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSION).join(id.clone());
+    let file_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION).join(id.clone());
     if file_path.exists() {
         let mut messages = serde_json::from_str::<Vec<ChatApiMessageWithHtml>>(std::fs::read_to_string(file_path).unwrap_or_default().as_str()).unwrap();
         for message in messages.iter_mut() {
@@ -479,13 +579,12 @@ async fn send_message_and_callback_stream(
 }
 
 fn init_config(app: &tauri::App) -> anyhow::Result<()> {
-    let chat_gpt_config_dir = app
-        .path_resolver()
-        .app_config_dir()
-        .unwrap()
-        .join("chatGPT");
+    let chat_gpt_config_dir = PATH_DIR_CHATGPT_CONFIG
+        .get_or_init(|| app.path_resolver().app_config_dir().unwrap().join("chatGPT"));
 
     let config_toml_file_path = chat_gpt_config_dir.join("config.toml");
+
+    println!("config_toml_file_path: {:#?}", config_toml_file_path);
 
     if (!config_toml_file_path.exists()) {
         std::fs::create_dir_all(chat_gpt_config_dir.clone()).unwrap();
@@ -505,6 +604,9 @@ fn init_config(app: &tauri::App) -> anyhow::Result<()> {
             SAVING_DIRECTORY = config.saving_directory.unwrap_or_default();
         }
     }
+
+    refresh_index_db().unwrap();
+    
     Ok(())
 }
 fn main() {
@@ -532,6 +634,8 @@ fn main() {
             get_api_key,
             reflesh_titles,
             load_messages,
+            search_conversations,
+            reflesh_index,
         ])
         .setup(|app| {
             init_config(&app).expect("config init error");

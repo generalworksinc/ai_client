@@ -21,8 +21,11 @@ const send_role = ref("user");
 const tempareture = ref(0.9);
 const template = ref("");
 const ai_name = ref("gpt-4");
+const search_word = ref("");
+const errorMsg = ref("");
 
 const titleList = ref([]);
+const searchResultList = ref([]);
 
 let articleDom = null;
 
@@ -129,12 +132,15 @@ const new_chat = () => {
     window.location.reload();
 };
 const save_chat = () => {
+
     //save model and chat data.
     invoke('save_chat', {
         params: JSON.stringify({
             data: all_messages.value.map(x => ({role: x.role, content: x.content})),
         })
     }).then(async res => {
+        clear_search();
+        refleshTitles();
         console.log('response.', res);
     });
 
@@ -180,6 +186,32 @@ const sendMessageStream = () => {
     });
 }
 
+const clear_search = () => {
+    errorMsg.value = '';
+    search_word.value = '';
+    searchResultList.value = [];
+    all_messages.value = [];
+}
+const reflesh_index = () => {
+    invoke('reflesh_index').then(async res => {
+        console.log('response.', res);
+    });
+}
+const search = () => {
+    errorMsg.value = '';
+    if (!search_word.value || search_word.value.length < 2) {
+        errorMsg.value= "please input search word 2 or more characters.";
+        return;
+    }    
+    invoke('search_conversations', {
+        word: search_word.value,
+    }).then(async res => {
+        const json = JSON.parse(res);
+        console.log('response.', );
+        searchResultList.value = json;
+    });
+}
+
 const ROLES = ['user', 'system'];
 const TEMPLATES = [
     `If the question cannot be answered using the information provided answer with "I don't know"`,
@@ -193,11 +225,27 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-3.5-turbo"/*, "text-davinci-00
 <template>
     <div class="container" style="dislpay: flex;">
         <Multipane class="vertical-panes w-full" layout="vertical">
-        <div style="width: 15rem;">
-            <div v-for="title in titleList"
-                @click="loadContent(title.id)" :key="'title_id_' + title.id"
-                style="cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                {{title.name}}
+        <div>
+            <div style="width: 15rem;">
+                <input type="text" v-model="search_word" />
+                <div v-if="errorMsg" style="font-weight: bold; color: #CA2A2A;">{{ errorMsg }}</div>
+                <button @click="search">search</button>
+                <!-- <button @click="reflesh_index">reflesh index</button> -->
+                <button @click="clear_search">clear search</button>
+            </div>
+            <div v-if="searchResultList && searchResultList.length > 0">
+                <div v-for="searchResult in searchResultList"
+                @click="loadContent(searchResult.id)" :key="'search_result_id_' + searchResult.id"
+                    style="font-weight: bold; color: #CA2A2A; #ewe; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{ searchResult.title }}
+                </div>
+            </div>
+            <div v-else>
+                <div v-for="title in titleList"
+                    @click="loadContent(title.id)" :key="'title_id_' + title.id"
+                    style="cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    {{title.name}}
+                </div>
             </div>
         </div>
         <MultipaneResizer></MultipaneResizer>
@@ -226,8 +274,8 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-3.5-turbo"/*, "text-davinci-00
                     style="height: 3rem; width: 80%;"></textarea>
                 <!-- <button @click="sendMessage">send</button> -->
                 <button @click="sendMessageStream">send</button>
-                <button @click="translateToJp">translate to Jp</button>
-                <button @click="translateToEn">translate to En</button>
+                <!-- <button @click="translateToJp">translate to Jp</button>
+                <button @click="translateToEn">translate to En</button> -->
             </div>
 
             <div id="article" class="markdown" style="overflow-y: scroll; max-height: 70vh;">
