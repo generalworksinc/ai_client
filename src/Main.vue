@@ -82,20 +82,24 @@ onMounted(async () => {
         }        
     });
     unlisten_timeout_stream = await listen('timeout_stream', (event) => {
-        console.log('timeout_stream called event.', event);
-        is_thinking.value = false;
+        console.log('timeout_stream id:', event.payload);
+        const messageId = event.payload;
         
-        const lastAssistanceMessage = { 'role': 'assistant', 'content': now_messaging_raw, 'content_html': now_messaging.value };
-        all_messages.value.push(lastAssistanceMessage);
-        now_messaging.value = "";
-        now_messaging_raw = "";
-        lastWaitingMessageId.value = "";
-    
-        nextTick(() => {
-            if (articleDom) {
-                articleDom.scrollTo(0, articleDom.scrollHeight);
-            }
-        });
+        if (messageId === lastWaitingMessageId.value) {
+            is_thinking.value = false;
+            
+            const lastAssistanceMessage = { 'role': 'assistant', 'content': now_messaging_raw, 'content_html': now_messaging.value };
+            all_messages.value.push(lastAssistanceMessage);
+            now_messaging.value = "";
+            now_messaging_raw = "";
+            lastWaitingMessageId.value = "";
+        
+            nextTick(() => {
+                if (articleDom) {
+                    articleDom.scrollTo(0, articleDom.scrollHeight);
+                }
+            });
+        }
     });
     unlisten_finish_chunks = await listen('finish_chunks', (event) => {
         console.log('called, finish_chunks', event.payload);
@@ -234,6 +238,13 @@ const search = () => {
         searchResultList.value = json;
     });
 }
+const cancel = () => {
+    const lastAssistanceMessage = { 'role': 'assistant', 'content': now_messaging_raw, 'content_html': now_messaging.value };
+    all_messages.value.push(lastAssistanceMessage);
+    lastWaitingMessageId.value = '';
+    now_messaging.value = "";
+    now_messaging_raw = "";
+}
 const goOn = () =>  {  
     const lastAssistanceMessage = { 'role': 'assistant', 'content': now_messaging_raw, 'content_html': now_messaging.value };
     all_messages.value.push(lastAssistanceMessage);
@@ -338,8 +349,8 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-3.5-turbo"/*, "text-davinci-00
                     <p v-else>I'm thinking...</p>
                 </article>
                 <div> for debug: now messageId: {{ lastWaitingMessageId }}</div>
-                <article v-if="now_messaging">
-                    <button @click="goOn">go on</button>
+                <article v-if="all_messages.length > 0">
+                    <button @click="goOn">go on</button><button @click="cancel">cancel</button>
                 </article>
             </div>
         </div>

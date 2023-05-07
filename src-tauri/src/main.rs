@@ -534,107 +534,109 @@ async fn send_message_and_callback_stream(
     let mut response_string = String::new();
     let start_time = chrono::Utc::now();
     let mut prev_time = chrono::Utc::now();
+    let messageId = postData.messageId.clone();
     
     // 非同期タスクとしてレスポンスの受信・処理を実行
-    let bytes_stream_task = task::spawn(async move {
-        let response = create_client()
-        .post(format!("{}/completions", "https://api.openai.com/v1/chat",).to_string())
-        .json(&data)
-        .timeout(Duration::from_secs(45))
-        .send()
-        .await
-        .unwrap();
     
-        let mut count = 0;
-        let for_each_val = response
-            .bytes_stream()
-            // .filter_map(|x| x.ok())
-            .for_each(|chunk| {
-                match chunk {
-                    Ok(chunk) => {
-                        count += 1;
-                        println!("count: {}", count);
-                        for tmp_str in String::from_utf8(chunk.to_vec())
-                            .unwrap()
-                            .split("data:")
-                            .filter(|&x| !x.replace("[DONE]", "").trim().is_empty())
-                        {
-                            // println!("trimed: {:?}", tmp_str.replace("[DONE]", "").trim());
+    let response = create_client()
+    .post(format!("{}/completions", "https://api.openai.com/v1/chat",).to_string())
+    .json(&data)
+    .timeout(Duration::from_secs(45))
+    .send()
+    .await
+    .unwrap();
 
-                            let chatGptChunkData: ChatGptResponseData =
-                                serde_json::from_str(tmp_str.replace("[DONE]", "").trim()).unwrap();
+    let mut count = 0;
+    let mut bytes_stream = response.bytes_stream();
 
-                            if let Some(error) = chatGptChunkData.error {
-                                window
-                                    .emit("stream_error", serde_json::to_string(&error).unwrap())
-                                    .unwrap();
-                            } else if let Some(choices) = chatGptChunkData.choices {
-                                for choice in choices {
-                                    if let Some(content) = choice.delta.content {
-                                        //emit every more 3 seconds.
-                                        let now = chrono::Utc::now();
-                                        let duration = now - prev_time;
+    let task = tokio::spawn(async move {
+        while let Some(chunk) = bytes_stream.next().await {
+            match chunk {
+                Ok(chunk) => {
+                    count += 1;
+                    println!("count: {}", count);
+                    for tmp_str in String::from_utf8(chunk.to_vec())
+                        .unwrap()
+                        .split("data:")
+                        .filter(|&x| !x.replace("[DONE]", "").trim().is_empty())
+                    {
+                        // println!("trimed: {:?}", tmp_str.replace("[DONE]", "").trim());
+
+                        let chatGptChunkData: ChatGptResponseData =
+                            serde_json::from_str(tmp_str.replace("[DONE]", "").trim()).unwrap();
+
+                        if let Some(error) = chatGptChunkData.error {
+                            window
+                                .emit("stream_error", serde_json::to_string(&error).unwrap())
+                                .unwrap();
+                        } else if let Some(choices) = chatGptChunkData.choices {
+                            for choice in choices {
+                                if let Some(content) = choice.delta.content {
+                                    //emit every more 3 seconds.
+                                    let now = chrono::Utc::now();
+                                    let duration = now - prev_time;
 
 
-                                        //generate random chars
-                                        let mut rng = rand::thread_rng();
-                                        let rng: String = (0..20).into_iter()
-                                        .map(|_| rng.sample(Alphanumeric))
-                                        .map(char::from)
-                                        .take(10)
-                                        .collect();
-                                        response_string.push_str((rng + "\\n<br>\\r\\n").as_str());
-                                        // response_string.push_str(&content);
+                                    //generate random chars
+                                    // let mut rng = rand::thread_rng();
+                                    // let rng: String = (0..20).into_iter()
+                                    // .map(|_| rng.sample(Alphanumeric))
+                                    // .map(char::from)
+                                    // .take(10)
+                                    // .collect();
+                                    // response_string.push_str((rng + "\\n<br>\\r\\n").as_str());
+                                    response_string.push_str(&content);
 
-                                        // println!(
-                                        //     "markdown::to_html(&response_string):{:?}",
-                                        //     markdown::to_html(&response_string)
-                                        // );
-                                        if duration.gt(&chrono::Duration::milliseconds(500)) {
-                                            prev_time = now;
-                                            window
-                                            .emit("stream_chunk", serde_json::json!({
-                                                "messageId":postData.messageId, 
-                                                "response": response_string.clone(), 
-                                                // "responseHtml": markdown::to_html(&response_string)
-                                                "responseHtml": markdown::to_html(&response_string)
-                                            }))
-                                            .unwrap();
-                                        }
-                                    }
-                                    if let Some(finish_reason) = choice.finish_reason {
-                                        println!("finish_reason: {:?}", finish_reason);
-                                        // println!(
-                                        //     "finish... markdown::to_html(&response_string):{:?}",
-                                        //     markdown::to_html(&response_string)
-                                        // );
+                                    println!(
+                                        "markdown::to_html(&response_string):{:?}",
+                                        markdown::to_html(&response_string)
+                                    );
+                                    if duration.gt(&chrono::Duration::milliseconds(200)) {
+                                        prev_time = now;
                                         window
-                                            .emit("finish_chunks", serde_json::json!({
-                                                "messageId": postData.messageId, 
-                                                "response": response_string.clone(), 
-                                                // "responseHtml":  markdown::to_html(&response_string)
-                                                "responseHtml":  markdown::to_html(&response_string)
-                                            }))
-                                            .unwrap();
+                                        .emit("stream_chunk", serde_json::json!({
+                                            "messageId": messageId.clone(), 
+                                            "response": response_string.clone(), 
+                                            // "responseHtml": markdown::to_html(&response_string)
+                                            "responseHtml": markdown::to_html(&response_string)
+                                        }))
+                                        .unwrap();
                                     }
+                                }
+                                if let Some(finish_reason) = choice.finish_reason {
+                                    println!("finish_reason: {:?}", finish_reason);
+                                    // println!(
+                                    //     "finish... markdown::to_html(&response_string):{:?}",
+                                    //     markdown::to_html(&response_string)
+                                    // );
+                                    window
+                                        .emit("finish_chunks", serde_json::json!({
+                                            "messageId": messageId.clone(), 
+                                            "response": response_string.clone(), 
+                                            // "responseHtml":  markdown::to_html(&response_string)
+                                            "responseHtml":  markdown::to_html(&response_string)
+                                        }))
+                                        .unwrap();
                                 }
                             }
                         }
-                    },
-                    Err(err) => {
-                        if err.is_timeout() {
-                            //timeout
-                            window.emit("timeout_stream", String::new()).unwrap();
-                        } else {
-                            //TODO each error.
-                            window.emit("timeout_stream", String::new()).unwrap();
-                        }
-                        return future::ready(()); // stop stream
                     }
+                },
+                Err(err) => {
+                    if err.is_timeout() {
+                        //timeout
+                        println!("timeout!");
+                        window.emit("timeout_stream", messageId.clone()).unwrap();
+                    } else {
+                        //TODO each error.
+                        println!("other err! {:?}", err);
+                        window.emit("timeout_stream", messageId.clone()).unwrap();
+                    }
+                   break;
                 }
-                future::ready(())
-            })
-            .await;
+            }
+        }
+        future::ready(())
     });
     // task::spawn(async move {
     //     let mut chars = String::new();
