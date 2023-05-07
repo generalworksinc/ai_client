@@ -3,6 +3,7 @@
 
 use futures::future;
 use futures::stream::{self, StreamExt};
+use rand::distributions::Alphanumeric;
 use serde_json::Value;
 use std::f32::consts::E;
 use std::path::{PathBuf,Path};
@@ -13,6 +14,10 @@ use std::time::Duration;
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 use tauri::{Manager, Window, WindowUrl};
 // use futures_util::stream::StreamExt;
+use tokio::runtime::Runtime;
+use tokio::task;
+use rand::prelude::*;
+
 
 use reqwest::{header, multipart, Body, Client};
 use serde::{Deserialize, Serialize};
@@ -506,6 +511,7 @@ async fn send_message_and_callback_stream(
         messages: Vec<ChatApiMessage>,
         temperature: Option<f32>,
         max_tokens: Option<u32>,
+        messageId: String,
     }
     let postData = serde_json::from_str::<PostData>(params.as_str()).unwrap();
     // let messages: Vec<ChatApiMessage> = serde_json::from_str(message.as_str()).unwrap();
@@ -519,63 +525,137 @@ async fn send_message_and_callback_stream(
     };
 
     println!("data: {:?}", data);
-    let response = create_client()
+    
+    // let rt = Runtime::new().unwrap();
+    //     // Spawn a blocking function onto the runtime
+    //     rt.block_on(async {
+            
+
+    let mut response_string = String::new();
+    let start_time = chrono::Utc::now();
+    let mut prev_time = chrono::Utc::now();
+    
+    // 非同期タスクとしてレスポンスの受信・処理を実行
+    let bytes_stream_task = task::spawn(async move {
+        let response = create_client()
         .post(format!("{}/completions", "https://api.openai.com/v1/chat",).to_string())
         .json(&data)
         .timeout(Duration::from_secs(45))
         .send()
         .await
         .unwrap();
+    
+        let mut count = 0;
+        let for_each_val = response
+            .bytes_stream()
+            // .filter_map(|x| x.ok())
+            .for_each(|chunk| {
+                match chunk {
+                    Ok(chunk) => {
+                        count += 1;
+                        println!("count: {}", count);
+                        for tmp_str in String::from_utf8(chunk.to_vec())
+                            .unwrap()
+                            .split("data:")
+                            .filter(|&x| !x.replace("[DONE]", "").trim().is_empty())
+                        {
+                            // println!("trimed: {:?}", tmp_str.replace("[DONE]", "").trim());
 
-    let mut response_string = String::new();
-    let for_each_val = response
-        .bytes_stream()
-        // .filter_map(|x| x.ok())
-        .for_each(|chunk| {
-            let chunk = chunk.unwrap();
-            for tmp_str in String::from_utf8(chunk.to_vec())
-                .unwrap()
-                .split("data:")
-                .filter(|&x| !x.replace("[DONE]", "").trim().is_empty())
-            {
-                println!("trimed: {:?}", tmp_str.replace("[DONE]", "").trim());
+                            let chatGptChunkData: ChatGptResponseData =
+                                serde_json::from_str(tmp_str.replace("[DONE]", "").trim()).unwrap();
 
-                let chatGptChunkData: ChatGptResponseData =
-                    serde_json::from_str(tmp_str.replace("[DONE]", "").trim()).unwrap();
+                            if let Some(error) = chatGptChunkData.error {
+                                window
+                                    .emit("stream_error", serde_json::to_string(&error).unwrap())
+                                    .unwrap();
+                            } else if let Some(choices) = chatGptChunkData.choices {
+                                for choice in choices {
+                                    if let Some(content) = choice.delta.content {
+                                        //emit every more 3 seconds.
+                                        let now = chrono::Utc::now();
+                                        let duration = now - prev_time;
 
-                if let Some(error) = chatGptChunkData.error {
-                    window
-                        .emit("stream_error", serde_json::to_string(&error).unwrap())
-                        .unwrap();
-                } else if let Some(choices) = chatGptChunkData.choices {
-                    for choice in choices {
-                        if let Some(content) = choice.delta.content {
-                            response_string.push_str(&content);
-                            println!(
-                                "markdown::to_html(&response_string):{:?}",
-                                markdown::to_html(&response_string)
-                            );
-                            window
-                                .emit("stream_chunk", markdown::to_html(&response_string))
-                                .unwrap();
+
+                                        //generate random chars
+                                        let mut rng = rand::thread_rng();
+                                        let rng: String = (0..20).into_iter()
+                                        .map(|_| rng.sample(Alphanumeric))
+                                        .map(char::from)
+                                        .take(10)
+                                        .collect();
+                                        response_string.push_str((rng + "\\n<br>\\r\\n").as_str());
+                                        // response_string.push_str(&content);
+
+                                        // println!(
+                                        //     "markdown::to_html(&response_string):{:?}",
+                                        //     markdown::to_html(&response_string)
+                                        // );
+                                        if duration.gt(&chrono::Duration::milliseconds(500)) {
+                                            prev_time = now;
+                                            window
+                                            .emit("stream_chunk", serde_json::json!({
+                                                "messageId":postData.messageId, 
+                                                "response": response_string.clone(), 
+                                                // "responseHtml": markdown::to_html(&response_string)
+                                                "responseHtml": markdown::to_html(&response_string)
+                                            }))
+                                            .unwrap();
+                                        }
+                                    }
+                                    if let Some(finish_reason) = choice.finish_reason {
+                                        println!("finish_reason: {:?}", finish_reason);
+                                        // println!(
+                                        //     "finish... markdown::to_html(&response_string):{:?}",
+                                        //     markdown::to_html(&response_string)
+                                        // );
+                                        window
+                                            .emit("finish_chunks", serde_json::json!({
+                                                "messageId": postData.messageId, 
+                                                "response": response_string.clone(), 
+                                                // "responseHtml":  markdown::to_html(&response_string)
+                                                "responseHtml":  markdown::to_html(&response_string)
+                                            }))
+                                            .unwrap();
+                                    }
+                                }
+                            }
                         }
-                        if let Some(finish_reason) = choice.finish_reason {
-                            println!("finish_reason: {:?}", finish_reason);
-                            println!(
-                                "finish... markdown::to_html(&response_string):{:?}",
-                                markdown::to_html(&response_string)
-                            );
-                            window
-                                .emit("finish_chunks", serde_json::json!({"response": response_string.clone(), "responseHtml":  markdown::to_html(&response_string)}).to_string())
-                                .unwrap();
+                    },
+                    Err(err) => {
+                        if err.is_timeout() {
+                            //timeout
+                            window.emit("timeout_stream", String::new()).unwrap();
+                        } else {
+                            //TODO each error.
+                            window.emit("timeout_stream", String::new()).unwrap();
                         }
+                        return future::ready(()); // stop stream
                     }
                 }
-            }
-            future::ready(())
-        })
-        .await;
-    Ok("".into())
+                future::ready(())
+            })
+            .await;
+    });
+    // task::spawn(async move {
+    //     let mut chars = String::new();
+    //     while true  {
+    //         //generate random chars
+    //         let mut rng = rand::thread_rng();
+    //         let rng: String = (0..20).into_iter()
+    //             .map(|_| rng.sample(Alphanumeric))
+    //             .map(char::from)
+    //             .take(10)
+    //             .collect();
+    //         chars.push_str((rng + "\\n<br>\\r\\n").as_str());
+    //         window
+    //         .emit("stream_chunk", serde_json::json!({"messageId":postData.messageId, "response": chars.clone(), "responseHtml": markdown::to_html(&chars)}))
+    //         .unwrap();
+    //         // std::time::sleep(Duration::from_secs(1));
+    //         //sleep 10 seconds
+    //         std::thread::sleep(std::time::Duration::from_secs(1));
+    //     }
+    // });
+    Ok("stream go on".into())
 }
 
 fn init_config(app: &tauri::App) -> anyhow::Result<()> {

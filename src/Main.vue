@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router';
 import { ref, nextTick } from "vue";
 import { onMounted, onUnmounted } from '@vue/runtime-core';
 import { Multipane, MultipaneResizer } from './lib/multipane';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = useRouter();
 
@@ -15,6 +16,7 @@ const message = ref("");
 const all_messages = ref([]);
 
 const now_messaging = ref("");
+let now_messaging_raw = "";
 const is_thinking = ref(false);
 const disp_raw_text_indexes = ref([]);
 const send_role = ref("user");
@@ -23,6 +25,7 @@ const template = ref("");
 const ai_name = ref("gpt-4");
 const search_word = ref("");
 const errorMsg = ref("");
+const lastWaitingMessageId = ref("");
 
 const titleList = ref([]);
 const searchResultList = ref([]);
@@ -32,6 +35,7 @@ let articleDom = null;
 let unlisten_stream_chunk = null;
 let unlisten_finish_chunks = null;
 let unlisten_stream_error = null;
+let unlisten_timeout_stream = null;
 
 onUnmounted(async () => {
     if (unlisten_stream_chunk) {
@@ -42,6 +46,9 @@ onUnmounted(async () => {
     }
     if (unlisten_stream_error) {
         unlisten_stream_error();
+    }
+    if (unlisten_timeout_stream) {
+        unlisten_timeout_stream();
     }
 });
 
@@ -59,9 +66,31 @@ onMounted(async () => {
         });
     });
     unlisten_stream_chunk = await listen('stream_chunk', (event) => {
+        console.log('streamdata:', event.payload);
+        const payload = event.payload;
+
+        // is_thinking.value = false;
+        if (lastWaitingMessageId.value === payload.messageId) {
+            console.log('unlisten_finish_chunks called event.', event);
+            now_messaging.value = payload.responseHtml;
+            now_messaging_raw = payload.response;
+            nextTick(() => {
+                if (articleDom) {
+                    articleDom.scrollTo(0, articleDom.scrollHeight);
+                }
+            });
+        }        
+    });
+    unlisten_timeout_stream = await listen('timeout_stream', (event) => {
+        console.log('timeout_stream called event.', event);
         is_thinking.value = false;
-        console.log('unlisten_finish_chunks called event.', event);
-        now_messaging.value = event.payload;
+        
+        const lastAssistanceMessage = { 'role': 'assistant', 'content': now_messaging_raw, 'content_html': now_messaging.value };
+        all_messages.value.push(lastAssistanceMessage);
+        now_messaging.value = "";
+        now_messaging_raw = "";
+        lastWaitingMessageId.value = "";
+    
         nextTick(() => {
             if (articleDom) {
                 articleDom.scrollTo(0, articleDom.scrollHeight);
@@ -69,41 +98,30 @@ onMounted(async () => {
         });
     });
     unlisten_finish_chunks = await listen('finish_chunks', (event) => {
-        // is_thinking.value = false;
-        console.log('unlisten_finish_chunks called event.', event);
-        // now_messaging.value = event.payload;
-
-        is_thinking.value = false;
-        if (now_messaging.value) {
-            const lastAssistanceMessage = { 'role': 'assistant', 'content': event.payload, 'content_html': now_messaging.value };
-            all_messages.value.push(lastAssistanceMessage);
-            now_messaging.value = "";
-        }
-        nextTick(() => {
-            if (articleDom) {
-                articleDom.scrollTo(0, articleDom.scrollHeight);
+        console.log('called, finish_chunks', event.payload);
+        const payload = event.payload;
+        
+        if (lastWaitingMessageId.value === payload.messageId) {
+            is_thinking.value = false;
+            if (payload.response) {
+                const lastAssistanceMessage = { 'role': 'assistant', 'content': payload.response, 'content_html': payload.responseHtml };
+                all_messages.value.push(lastAssistanceMessage);
+                now_messaging.value = "";
+                now_messaging_raw = "";
+            } else {
+                const lastAssistanceMessage = { 'role': 'assistant', 'content': now_messaging_raw, 'content_html': now_messaging.value };
+                all_messages.value.push(lastAssistanceMessage);
+                now_messaging.value = "";
+                now_messaging_raw = "";
+                lastWaitingMessageId.value = "";
             }
-        });
-    });
-    unlisten_finish_chunks = await listen('finish_chunks', (event) => {
-        // is_thinking.value = false;
-        console.log('unlisten_finish_chunks called event.', event);
-        // now_messaging.value = event.payload;
-        const payload = JSON.parse(event.payload);
-        console.log('payload:', payload);
-        is_thinking.value = false;
-        if (now_messaging.value) {
-            const lastAssistanceMessage = { 'role': 'assistant', 'content': payload.response, 'content_html': payload.responseHtml };
-            all_messages.value.push(lastAssistanceMessage);
-            now_messaging.value = "";
+            // nextTick(() => {
+            //     if (articleDom) {
+            //         articleDom.scrollTo(0, articleDom.scrollHeight);
+            //     }
+            // });
         }
-        nextTick(() => {
-            if (articleDom) {
-                articleDom.scrollTo(0, articleDom.scrollHeight);
-            }
-        });
     });
-
 
     refleshTitles();
 });
@@ -164,21 +182,26 @@ const translateToEn = () => {
     sendMessageStream();
 }
 const sendMessageStream = () => {
+    const messageId = uuidv4();
+    lastWaitingMessageId.value = messageId;
+
     const userMessage = { 'role': send_role.value, 'content': message.value };
     all_messages.value.push(userMessage);
     now_messaging.value = "";
     message.value = '';
-
+    
     invoke('send_message_and_callback_stream', {
         params: JSON.stringify({
             messages: all_messages.value,
             model: ai_name.value,
             temperature: 0.9,
             max_tokens: 1024,
+            messageId: messageId,
         })
     }).then(async res => {
-        console.log('response.', res);
+        console.log('send_message_and_callback_stream response.', res);
     });
+    
     nextTick(() => {
         if (articleDom) {
             articleDom.scrollTo(0, articleDom.scrollHeight);
@@ -210,6 +233,15 @@ const search = () => {
         console.log('response.', );
         searchResultList.value = json;
     });
+}
+const goOn = () =>  {  
+    const lastAssistanceMessage = { 'role': 'assistant', 'content': now_messaging_raw, 'content_html': now_messaging.value };
+    all_messages.value.push(lastAssistanceMessage);
+    lastWaitingMessageId.value = '';
+    now_messaging.value = "";
+    now_messaging_raw = "";
+    message.value = 'go on';
+    sendMessageStream();
 }
 
 const ROLES = ['user', 'system'];
@@ -278,7 +310,7 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-3.5-turbo"/*, "text-davinci-00
                 <button @click="translateToEn">translate to En</button> -->
             </div>
 
-            <div id="article" class="markdown" style="overflow-y: scroll; max-height: 70vh;">
+            <div id="article" class="markdown" style="overflow-y: scroll; max-height: 70vh; word-break: break-all; ">
                 <article v-for="(msg, ind) in all_messages" :key="'msg_' + ind" :style="ind > 0 ? 'margin-top: 2rem;' : ''">
                     <div v-if="msg.role == 'user' || msg.role == 'system'">
                         <div>
@@ -304,6 +336,10 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-3.5-turbo"/*, "text-davinci-00
                     <div><span>chatGPT</span></div>
                     <div v-if="now_messaging" v-html="now_messaging"></div>
                     <p v-else>I'm thinking...</p>
+                </article>
+                <div> for debug: now messageId: {{ lastWaitingMessageId }}</div>
+                <article v-if="now_messaging">
+                    <button @click="goOn">go on</button>
                 </article>
             </div>
         </div>
