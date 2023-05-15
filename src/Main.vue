@@ -26,6 +26,7 @@ const ai_name = ref("gpt-4");
 const search_word = ref("");
 const errorMsg = ref("");
 const lastWaitingMessageId = ref("");
+const timeoutSec = ref(180);
 
 const titleList = ref([]);
 const searchResultList = ref([]);
@@ -201,7 +202,8 @@ const sendMessageStream = () => {
             temperature: 0.9,
             max_tokens: 1024,
             messageId: messageId,
-        })
+        }),
+        timeoutSec: timeoutSec.value,
     }).then(async res => {
         console.log('send_message_and_callback_stream response.', res);
     });
@@ -307,10 +309,18 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-3.5-turbo"/*, "text-davinci-00
             <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES" :key="'role_' + role">
                     <input type="radio" v-model="send_role" :value="role" />{{ role }}
                 </label></div>
-            <div>tempareture: <input type="text" v-model="tempareture"><button @click="add_template">add
-                    template</button><select v-model="template">
-                    <option v-for="value in TEMPLATES" :value="value" :key="'template_' + value">{{ value }}</option>
-                </select>
+            <div>
+                <div style="display: flex;">
+                    <span>tempareture: </span>
+                    <input type="text" v-model="tempareture" />
+                    <span>timeout: </span>
+                    <input type="text" v-model="timeoutSec" />
+                </div>
+                <div><button @click="add_template">add template</button>
+                    <select v-model="template">
+                        <option v-for="value in TEMPLATES" :value="value" :key="'template_' + value">{{ value }}</option>
+                    </select>
+                </div>
             </div>
             <div style="display: flex; align-items: flex-end;">
                 <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"

@@ -504,7 +504,9 @@ async fn send_message_and_callback_stream(
     window: Window,
     app_handle: tauri::AppHandle,
     params: String,
+    timeout_sec: Option<u64>,
 ) -> Result<String, String> {
+    println!("timeout {:?}", timeout_sec);
     #[derive(Deserialize)]
     struct PostData {
         model: Option<String>,
@@ -541,7 +543,7 @@ async fn send_message_and_callback_stream(
     let response = create_client()
     .post(format!("{}/completions", "https://api.openai.com/v1/chat",).to_string())
     .json(&data)
-    .timeout(Duration::from_secs(45))
+    .timeout(Duration::from_secs(timeout_sec.unwrap_or(45)))
     .send()
     .await
     .unwrap();
