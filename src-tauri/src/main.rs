@@ -697,7 +697,9 @@ fn main() {
     let main_page = CustomMenuItem::new("main".to_string(), "Main");
     let settings = CustomMenuItem::new("settings".to_string(), "Settings");
     let submenu = Submenu::new("Menu", Menu::new().add_item(main_page).add_item(settings));
-    let menu = Menu::new().add_submenu(submenu);
+    // let menu = Menu::new().add_submenu(submenu);
+    let context = tauri::generate_context!();
+    let menu = tauri::Menu::os_default(&context.package_info().name).add_submenu(submenu);
 
     tauri::Builder::default()
         .menu(menu)
