@@ -5,8 +5,7 @@ import Greet from "./components/Greet.vue";
 import { invoke, convertFileSrc } from '@tauri-apps/api/tauri'
 import { emit, listen } from '@tauri-apps/api/event';
 import { useRouter } from 'vue-router';
-import { ref, nextTick } from "vue";
-import { onMounted, onUnmounted } from '@vue/runtime-core';
+import { ref, nextTick, onMounted, onUnmounted } from "vue";
 import { Multipane, MultipaneResizer } from './lib/multipane';
 import { v4 as uuidv4 } from 'uuid';
 

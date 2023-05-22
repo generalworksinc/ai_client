@@ -727,6 +727,6 @@ fn main() {
             init_config(&app).expect("config init error");
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running tauri application");
 }

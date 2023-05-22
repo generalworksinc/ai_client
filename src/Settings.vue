@@ -1,11 +1,9 @@
 <script setup>
 // This starter template is using Vue 3 <script setup> SFCs
 // Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
-import Greet from "./components/Greet.vue";
-import { onMounted, onUnmounted } from '@vue/runtime-core';
 import { invoke, convertFileSrc } from '@tauri-apps/api/tauri'
 import { useRouter } from 'vue-router';
-import { ref } from "vue";
+import { ref, onMounted, onUnmounted  } from "vue";
 const router = useRouter();
 
 const api_key = ref("");

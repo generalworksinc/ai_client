@@ -3,8 +3,7 @@
 import { emit, listen } from '@tauri-apps/api/event';
 // import { register, unregister, unregisterAll  } from '@tauri-apps/api/globalShortcut';
 import { useRouter } from 'vue-router';
-import { ref, nextTick } from "vue";
-import { onMounted, onUnmounted } from '@vue/runtime-core';
+import { ref, nextTick, onMounted, onUnmounted} from "vue";
 
 
 const router = useRouter();
