@@ -290,14 +290,14 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-3.5-turbo"/*, "text-davinci-00
                 <!-- <button @click="reflesh_index">reflesh index</button> -->
                 <button @click="clear_search">clear search</button>
             </div>
-            <div v-if="searchResultList && searchResultList.length > 0">
+            <div v-if="searchResultList && searchResultList.length > 0" style="overflow-y: scroll; max-height: 90vh;">
                 <div v-for="searchResult in searchResultList"
                 @click="loadContent(searchResult.id)" :key="'search_result_id_' + searchResult.id"
                     style="max-width: 400px; font-weight: bold; color: #CA2A2A; #ewe; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                     {{ searchResult.title }}
                 </div>
             </div>
-            <div v-else>
+            <div v-else  style="overflow-y: scroll; max-height: 90vh;">
                 <div v-for="title in titleList"
                     :key="'title_id_' + title.id"
                     style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
