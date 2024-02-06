@@ -193,6 +193,33 @@ async fn get_api_key(app_handle: tauri::AppHandle) -> Result<String, String> {
     Ok(res.to_string())
 }
 
+#[tauri::command]
+async fn change_message(app_handle: tauri::AppHandle, id: String, name: String) -> Result<String, String> {
+    let dir = unsafe{SAVING_DIRECTORY.clone()};
+    let file_path_title = std::path::Path::new(dir.as_str()).join(DIR_TITLE).join(id.clone());
+    
+    if file_path_title.exists() {
+        std::fs::write(file_path_title, name).map_err(|err| err.to_string())?;
+        //更新
+        // title_f.write_all(title.as_bytes()).unwrap();
+    }
+    Ok("変更しました".to_string())
+}
+#[tauri::command]
+async fn delete_message(app_handle: tauri::AppHandle, id: String) -> Result<String, String> {
+    let dir = unsafe{SAVING_DIRECTORY.clone()};
+    let file_path_conversation = std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION).join(id.clone());
+    let file_path_title = std::path::Path::new(dir.as_str()).join(DIR_TITLE).join(id.clone());
+    if file_path_conversation.exists() {
+        //削除
+        std::fs::remove_file(file_path_conversation).map_err(|x| x.to_string())?;
+    }
+    if file_path_title.exists() {
+        //削除
+        std::fs::remove_file(file_path_title).map_err(|x| x.to_string())?;
+    }
+    Ok("削除しました".to_string())
+}
 
 #[tauri::command]
 async fn send_message(app_handle: tauri::AppHandle, message: String) -> Result<String, String> {
@@ -720,6 +747,8 @@ fn main() {
             get_api_key,
             reflesh_titles,
             load_messages,
+            delete_message,
+            change_message,
             search_conversations,
             reflesh_index,
         ])

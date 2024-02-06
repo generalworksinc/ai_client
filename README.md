@@ -1,22 +1,7 @@
-That's a brief summary of the app's description and how to use it. written by chatGPT.
+# Tauri + Vue 3
 
-# AI Client
+This template should help get you started developing with Tauri + Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
 
-This app is a simple application that utilizes the chatGPT3 API.
+## Recommended IDE Setup
 
-## Features
-
-- It is extremely simple.
-- Developed using tauri and vue3.
-- Currently only supports API use for chatGPT3.
-- Users can set up their own API Key to use the app.
-
-## How to use
-
-1. Obtain an API Key for chatGPT3.
-2. Configure the app settings with the obtained API Key.
-3. Start chatting with the chatbot.
-
-![image](https://user-images.githubusercontent.com/12643025/226862947-87b97fb7-ca7d-46d6-9c29-755864c4b9ce.png)
-
-![image](https://user-images.githubusercontent.com/12643025/227689800-059063d7-3dc6-4a2a-8eb0-f0592143eac4.png)
+- [VS Code](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)

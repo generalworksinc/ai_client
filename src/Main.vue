@@ -147,6 +147,19 @@ const loadContent = (id) => {
 }
 
 //methods
+const changeContent = (title) => {
+    invoke('change_message', {id: title.id, name: title.name}).then(async res => {
+        title.isEditing = false;
+        refleshTitles();
+    });
+}
+
+const deleteContent = (id) => {
+    invoke('delete_message', {id}).then(async res => {
+        console.log('delete response.', res);
+        refleshTitles();
+    });
+}
 const add_template = () => {
     message.value += "\n" + template.value;
 };
@@ -271,7 +284,7 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-3.5-turbo"/*, "text-davinci-00
         <Multipane class="vertical-panes w-full" layout="vertical">
         <div>
             <div style="width: 15rem;">
-                <input type="text" v-model="search_word" />
+                <input type="text" v-model="search_word" @keypress.enter="search" />
                 <div v-if="errorMsg" style="font-weight: bold; color: #CA2A2A;">{{ errorMsg }}</div>
                 <button @click="search">search</button>
                 <!-- <button @click="reflesh_index">reflesh index</button> -->
@@ -280,15 +293,26 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-3.5-turbo"/*, "text-davinci-00
             <div v-if="searchResultList && searchResultList.length > 0">
                 <div v-for="searchResult in searchResultList"
                 @click="loadContent(searchResult.id)" :key="'search_result_id_' + searchResult.id"
-                    style="font-weight: bold; color: #CA2A2A; #ewe; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    style="max-width: 400px; font-weight: bold; color: #CA2A2A; #ewe; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                     {{ searchResult.title }}
                 </div>
             </div>
             <div v-else>
                 <div v-for="title in titleList"
-                    @click="loadContent(title.id)" :key="'title_id_' + title.id"
-                    style="cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    {{title.name}}
+                    :key="'title_id_' + title.id"
+                    style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <template v-if="!title.isEditing" >
+                        <div style="flex: glow; max-width: 400px;" @click="loadContent(title.id)" >{{title.name || '(タイトルなし)'}}</div>
+                        <div style="flex: 1">
+                            <button @click="deleteContent(title.id)" class="button-sm">削</button>
+                            <button @click="() => title.isEditing = true" class="button-sm">変</button>
+                        </div>
+                    </template>
+                    <template v-else>
+                        <div style="flex: glow; max-width: 400px;">
+                            <input type="text" v-model="title.name" @blur="changeContent(title)" @keypress.enter="changeContent(title)" />
+                        </div>
+                    </template>
                 </div>
             </div>
         </div>
