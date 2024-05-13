@@ -276,7 +276,7 @@ const TEMPLATES = [
      "First,", "Let's think about this logically.",
       "Let's solve this problem by splitting it into steps."];
 
-const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-3.5-turbo"/*, "text-davinci-003", 'code-davinci-002' */];
+const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"/*, "text-davinci-003", 'code-davinci-002' */];
 </script>
 
 <template>
