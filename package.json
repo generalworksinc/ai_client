@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.13",
-    "@tauri-apps/api": "^1.5.5",
-    "tailwindcss": "^3.4.3",
+    "@tauri-apps/api": "^1.5.6",
+    "tailwindcss": "^3.4.4",
     "uuid": "^9.0.1",
     "vue": "^3.4.27",
     "vue-router": "^4.3.2"
@@ -20,7 +20,7 @@
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.14",
     "@vitejs/plugin-vue": "^4.6.2",
-    "sass": "^1.77.1",
-    "vite": "^5.2.11"
+    "sass": "^1.77.4",
+    "vite": "^5.2.12"
   }
 }

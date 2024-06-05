@@ -5,7 +5,7 @@ import Greet from "./components/Greet.vue";
 import { invoke, convertFileSrc } from '@tauri-apps/api/tauri'
 import { emit, listen } from '@tauri-apps/api/event';
 import { useRouter } from 'vue-router';
-import { ref, nextTick, onMounted, onUnmounted } from "vue";
+import { ref, nextTick, onMounted, onUnmounted, computed } from "vue";
 import { Multipane, MultipaneResizer } from './lib/multipane';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -145,7 +145,16 @@ const loadContent = (id) => {
         all_messages.value = JSON.parse(res);
     });
 }
-
+const searchResultListSorted = computed(() => {
+    return searchResultList.value.sort((a, b) => {
+        return a.time < b.time;
+    });
+});
+const titleListSorted = computed(() => {
+    return titleList.value.sort((a, b) => {
+        return a.time < b.time;
+    });
+});
 //methods
 const changeContent = (title) => {
     invoke('change_message', {id: title.id, name: title.name}).then(async res => {
@@ -290,15 +299,15 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-4o", "gpt-4-turbo", "gpt-3.5-t
                 <!-- <button @click="reflesh_index">reflesh index</button> -->
                 <button @click="clear_search">clear search</button>
             </div>
-            <div v-if="searchResultList && searchResultList.length > 0" style="overflow-y: scroll; max-height: 90vh;">
-                <div v-for="searchResult in searchResultList"
+            <div v-if="searchResultListSorted && searchResultListSorted.length > 0" style="overflow-y: scroll; max-height: 90vh;">
+                <div v-for="searchResult in searchResultListSorted"
                 @click="loadContent(searchResult.id)" :key="'search_result_id_' + searchResult.id"
                     style="max-width: 400px; font-weight: bold; color: #CA2A2A; #ewe; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                     {{ searchResult.title }}
                 </div>
             </div>
             <div v-else  style="overflow-y: scroll; max-height: 90vh;">
-                <div v-for="title in titleList"
+                <div v-for="title in titleListSorted"
                     :key="'title_id_' + title.id"
                     style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                     <template v-if="!title.isEditing" >
@@ -307,6 +316,10 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-4o", "gpt-4-turbo", "gpt-3.5-t
                             <button @click="deleteContent(title.id)" class="button-sm">削</button>
                             <button @click="() => title.isEditing = true" class="button-sm">変</button>
                         </div>
+                        <!-- <div>
+                            title all json:
+                            {{ JSON.stringify(title) }}
+                        </div> -->
                     </template>
                     <template v-else>
                         <div style="flex: glow; max-width: 400px;">
