@@ -147,12 +147,12 @@ const loadContent = (id) => {
 }
 const searchResultListSorted = computed(() => {
     return searchResultList.value.sort((a, b) => {
-        return a.time < b.time;
+        return a.time === b.time ? 0 : a.time < b.time ? 1 : -1;
     });
 });
 const titleListSorted = computed(() => {
     return titleList.value.sort((a, b) => {
-        return a.time < b.time;
+        return a.time === b.time ? 0 : a.time < b.time ? 1 : -1;
     });
 });
 //methods
@@ -316,7 +316,7 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-4o", "gpt-4-turbo", "gpt-3.5-t
                             <button @click="deleteContent(title.id)" class="button-sm">削</button>
                             <button @click="() => title.isEditing = true" class="button-sm">変</button>
                         </div>
-                        <!-- <div>
+                        <!--<div>
                             title all json:
                             {{ JSON.stringify(title) }}
                         </div> -->
