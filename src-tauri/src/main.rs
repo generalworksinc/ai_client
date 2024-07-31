@@ -221,43 +221,6 @@ async fn delete_message(app_handle: tauri::AppHandle, id: String) -> Result<Stri
     Ok("削除しました".to_string())
 }
 
-#[tauri::command]
-async fn send_message(app_handle: tauri::AppHandle, message: String) -> Result<String, String> {
-    println!("call send_message! message:{message}");
-    let messages: Vec<ChatApiMessage> = serde_json::from_str(message.as_str()).unwrap();
-
-    let data = ChatApiSendMessage {
-        model: "gpt-3.5-turbo".into(),
-        max_tokens: 1024,
-        temperature: 0.9f32,
-        messages: messages,
-        stream: false,
-    };
-
-    let response = create_client()
-        .post(format!("{}/completions", "https://api.openai.com/v1/chat",).to_string())
-        .json(&data)
-        .timeout(Duration::from_secs(45))
-        .send()
-        .await
-        .unwrap();
-
-    if response.status() == 200 {
-        let resData = response.json::<serde_json::Value>().await;
-        match resData {
-            Ok(data) => return Ok(data.to_string()),
-            Err(err) => {
-                return Err("server error".into());
-            }
-        }
-    } else {
-        println!(
-            "response: {:#?}",
-            response.json::<serde_json::Value>().await.ok()
-        );
-        return Err("server error".into());
-    }
-}
 
 #[tauri::command]
 async fn save_chat(
@@ -546,8 +509,8 @@ async fn send_message_and_callback_stream(
     // let messages: Vec<ChatApiMessage> = serde_json::from_str(message.as_str()).unwrap();
 
     let data = ChatApiSendMessage {
-        model: postData.model.unwrap_or("gpt-3.5-turbo".into()),
-        max_tokens: postData.max_tokens.unwrap_or(1024),
+        model: postData.model.unwrap_or("gpt-4o-mini".into()),
+        max_tokens: postData.max_tokens.unwrap_or(2048),
         temperature: postData.temperature.unwrap_or(0.9f32),
         messages: postData.messages,
         stream: true,
@@ -741,7 +704,6 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             save_chat,
-            send_message,
             send_message_and_callback_stream,
             set_api_key,
             get_api_key,

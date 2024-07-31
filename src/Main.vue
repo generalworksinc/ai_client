@@ -21,7 +21,7 @@ const disp_raw_text_indexes = ref([]);
 const send_role = ref("user");
 const tempareture = ref(0.9);
 const template = ref("");
-const ai_name = ref("gpt-4");
+const ai_name = ref("gpt-4o-mini");
 const search_word = ref("");
 const errorMsg = ref("");
 const lastWaitingMessageId = ref("");
@@ -79,21 +79,21 @@ onMounted(async () => {
                     articleDom.scrollTo(0, articleDom.scrollHeight);
                 }
             });
-        }        
+        }
     });
     unlisten_timeout_stream = await listen('timeout_stream', (event) => {
         console.log('timeout_stream id:', event.payload);
         const messageId = event.payload;
-        
+
         if (messageId === lastWaitingMessageId.value) {
             is_thinking.value = false;
-            
+
             const lastAssistanceMessage = { 'role': 'assistant', 'content': now_messaging_raw, 'content_html': now_messaging.value };
             all_messages.value.push(lastAssistanceMessage);
             now_messaging.value = "";
             now_messaging_raw = "";
             lastWaitingMessageId.value = "";
-        
+
             nextTick(() => {
                 if (articleDom) {
                     articleDom.scrollTo(0, articleDom.scrollHeight);
@@ -104,7 +104,7 @@ onMounted(async () => {
     unlisten_finish_chunks = await listen('finish_chunks', (event) => {
         console.log('called, finish_chunks', event.payload);
         const payload = event.payload;
-        
+
         if (lastWaitingMessageId.value === payload.messageId) {
             is_thinking.value = false;
             if (payload.response) {
@@ -138,7 +138,7 @@ const refleshTitles = () => {
     });
 };
 const loadContent = (id) => {
-    invoke('load_messages', {id}).then(async res => {
+    invoke('load_messages', { id }).then(async res => {
         console.log('load response.', res);
         console.log('data; ', JSON.parse(res));
         // const lastAssistanceMessage = { 'role': 'assistant', 'content': event.payload, 'content_html': now_messaging.value };
@@ -157,14 +157,14 @@ const titleListSorted = computed(() => {
 });
 //methods
 const changeContent = (title) => {
-    invoke('change_message', {id: title.id, name: title.name}).then(async res => {
+    invoke('change_message', { id: title.id, name: title.name }).then(async res => {
         title.isEditing = false;
         refleshTitles();
     });
 }
 
 const deleteContent = (id) => {
-    invoke('delete_message', {id}).then(async res => {
+    invoke('delete_message', { id }).then(async res => {
         console.log('delete response.', res);
         refleshTitles();
     });
@@ -180,7 +180,7 @@ const save_chat = () => {
     //save model and chat data.
     invoke('save_chat', {
         params: JSON.stringify({
-            data: all_messages.value.map(x => ({role: x.role, content: x.content})),
+            data: all_messages.value.map(x => ({ role: x.role, content: x.content })),
         })
     }).then(async res => {
         clear_search();
@@ -215,20 +215,20 @@ const sendMessageStream = () => {
     all_messages.value.push(userMessage);
     now_messaging.value = "";
     message.value = '';
-    
+
     invoke('send_message_and_callback_stream', {
         params: JSON.stringify({
             messages: all_messages.value,
             model: ai_name.value,
             temperature: 0.9,
-            max_tokens: 1024,
+            max_tokens: 2048,
             messageId: messageId,
         }),
         timeoutSec: timeoutSec.value,
     }).then(async res => {
         console.log('send_message_and_callback_stream response.', res);
     });
-    
+
     nextTick(() => {
         if (articleDom) {
             articleDom.scrollTo(0, articleDom.scrollHeight);
@@ -250,14 +250,14 @@ const reflesh_index = () => {
 const search = () => {
     errorMsg.value = '';
     if (!search_word.value || search_word.value.length < 2) {
-        errorMsg.value= "please input search word 2 or more characters.";
+        errorMsg.value = "please input search word 2 or more characters.";
         return;
-    }    
+    }
     invoke('search_conversations', {
         word: search_word.value,
     }).then(async res => {
         const json = JSON.parse(res);
-        console.log('response.', );
+        console.log('response.',);
         searchResultList.value = json;
     });
 }
@@ -268,7 +268,7 @@ const cancel = () => {
     now_messaging.value = "";
     now_messaging_raw = "";
 }
-const goOn = () =>  {  
+const goOn = () => {
     const lastAssistanceMessage = { 'role': 'assistant', 'content': now_messaging_raw, 'content_html': now_messaging.value };
     all_messages.value.push(lastAssistanceMessage);
     lastWaitingMessageId.value = '';
@@ -282,124 +282,131 @@ const ROLES = ['user', 'system'];
 const TEMPLATES = [
     `If the question cannot be answered using the information provided answer with "I don't know"`,
     "Let's think logically, step by step. ",
-     "First,", "Let's think about this logically.",
-      "Let's solve this problem by splitting it into steps."];
+    "First,", "Let's think about this logically.",
+    "Let's solve this problem by splitting it into steps."];
 
-const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"/*, "text-davinci-003", 'code-davinci-002' */];
+const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4o-mini", "gpt-4", "gpt-4o", "gpt-4-turbo"];
 </script>
 
 <template>
     <div class="container" style="dislpay: flex;">
         <Multipane class="vertical-panes w-full" layout="vertical">
-        <div>
-            <div style="width: 15rem;">
-                <input type="text" v-model="search_word" @keypress.enter="search" />
-                <div v-if="errorMsg" style="font-weight: bold; color: #CA2A2A;">{{ errorMsg }}</div>
-                <button @click="search">search</button>
-                <!-- <button @click="reflesh_index">reflesh index</button> -->
-                <button @click="clear_search">clear search</button>
-            </div>
-            <div v-if="searchResultListSorted && searchResultListSorted.length > 0" style="overflow-y: scroll; max-height: 90vh;">
-                <div v-for="searchResult in searchResultListSorted"
-                @click="loadContent(searchResult.id)" :key="'search_result_id_' + searchResult.id"
-                    style="max-width: 400px; font-weight: bold; color: #CA2A2A; #ewe; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    {{ searchResult.title }}
+            <div>
+                <div style="width: 15rem;">
+                    <input type="text" v-model="search_word" @keypress.enter="search" />
+                    <div v-if="errorMsg" style="font-weight: bold; color: #CA2A2A;">{{ errorMsg }}</div>
+                    <button @click="search">search</button>
+                    <!-- <button @click="reflesh_index">reflesh index</button> -->
+                    <button @click="clear_search">clear search</button>
                 </div>
-            </div>
-            <div v-else  style="overflow-y: scroll; max-height: 90vh;">
-                <div v-for="title in titleListSorted"
-                    :key="'title_id_' + title.id"
-                    style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    <template v-if="!title.isEditing" >
-                        <div style="flex: glow; max-width: 400px;" @click="loadContent(title.id)" >{{title.name || '(タイトルなし)'}}</div>
-                        <div style="flex: 1">
-                            <button @click="deleteContent(title.id)" class="button-sm">削</button>
-                            <button @click="() => title.isEditing = true" class="button-sm">変</button>
-                        </div>
-                        <!--<div>
+                <div v-if="searchResultListSorted && searchResultListSorted.length > 0"
+                    style="overflow-y: scroll; max-height: 90vh;">
+                    <div v-for="searchResult in searchResultListSorted" @click="loadContent(searchResult.id)"
+                        :key="'search_result_id_' + searchResult.id"
+                        style="max-width: 400px; font-weight: bold; color: #CA2A2A; #ewe; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ searchResult.title }}
+                    </div>
+                </div>
+                <div v-else style="overflow-y: scroll; max-height: 90vh;">
+                    <div v-for="title in titleListSorted" :key="'title_id_' + title.id"
+                        style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        <template v-if="!title.isEditing">
+                            <div style="flex: glow; max-width: 400px;" @click="loadContent(title.id)">{{ title.name ||
+                                '(タイトルなし)' }}</div>
+                            <div style="flex: 1">
+                                <button @click="deleteContent(title.id)" class="button-sm">削</button>
+                                <button @click="() => title.isEditing = true" class="button-sm">変</button>
+                            </div>
+                            <!--<div>
                             title all json:
                             {{ JSON.stringify(title) }}
                         </div> -->
-                    </template>
-                    <template v-else>
-                        <div style="flex: glow; max-width: 400px;">
-                            <input type="text" v-model="title.name" @blur="changeContent(title)" @keypress.enter="changeContent(title)" />
-                        </div>
-                    </template>
+                        </template>
+                        <template v-else>
+                            <div style="flex: glow; max-width: 400px;">
+                                <input type="text" v-model="title.name" @blur="changeContent(title)"
+                                    @keypress.enter="changeContent(title)" />
+                            </div>
+                        </template>
+                    </div>
                 </div>
             </div>
-        </div>
-        <MultipaneResizer></MultipaneResizer>
-        <div style="flex-direction: column; width:100%; flex: 1 1 0%; overflow: hidden;">
-            <div style="display: flex; justify-content: space-between;">
-                <h3>Model: 
-                    <select style="font-size: 2rem;" v-model="ai_name">
-                        <option v-for="value in AI_MODELS" :value="value" :key="'ai_name_' + value">
-                            {{ value }}</option>    
-                    </select>
-                </h3>
-                <button @click="save_chat">save</button>
-                <button @click="new_chat">new chat</button>
-            </div>
+            <MultipaneResizer></MultipaneResizer>
+            <div style="flex-direction: column; width:100%; flex: 1 1 0%; overflow: hidden;">
+                <div style="display: flex; justify-content: space-between;">
+                    <h3>Model:
+                        <select style="font-size: 2rem;" v-model="ai_name">
+                            <option v-for="value in AI_MODELS" :value="value" :key="'ai_name_' + value">
+                                {{ value }}</option>
+                        </select>
+                    </h3>
+                    <button @click="save_chat">save</button>
+                    <button @click="new_chat">new chat</button>
+                </div>
 
-            <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES" :key="'role_' + role">
-                    <input type="radio" v-model="send_role" :value="role" />{{ role }}
-                </label></div>
-            <div>
-                <div style="display: flex;">
-                    <span>tempareture: </span>
-                    <input type="text" v-model="tempareture" />
-                    <span>timeout: </span>
-                    <input type="text" v-model="timeoutSec" />
+                <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES" :key="'role_' + role">
+                        <input type="radio" v-model="send_role" :value="role" />{{ role }}
+                    </label></div>
+                <div>
+                    <div style="display: flex;">
+                        <span>tempareture: </span>
+                        <input type="text" v-model="tempareture" />
+                        <span>timeout: </span>
+                        <input type="text" v-model="timeoutSec" />
+                    </div>
+                    <div><button @click="add_template">add template</button>
+                        <select v-model="template">
+                            <option v-for="value in TEMPLATES" :value="value" :key="'template_' + value">{{ value }}
+                            </option>
+                        </select>
+                    </div>
                 </div>
-                <div><button @click="add_template">add template</button>
-                    <select v-model="template">
-                        <option v-for="value in TEMPLATES" :value="value" :key="'template_' + value">{{ value }}</option>
-                    </select>
-                </div>
-            </div>
-            <div style="display: flex; align-items: flex-end;">
-                <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
-                    style="height: 3rem; width: 80%;"></textarea>
-                <!-- <button @click="sendMessage">send</button> -->
-                <button @click="sendMessageStream">send</button>
-                <!-- <button @click="translateToJp">translate to Jp</button>
+                <div style="display: flex; align-items: flex-end;">
+                    <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
+                        style="height: 3rem; width: 80%;"></textarea>
+                    <!-- <button @click="sendMessage">send</button> -->
+                    <button @click="sendMessageStream">send</button>
+                    <!-- <button @click="translateToJp">translate to Jp</button>
                 <button @click="translateToEn">translate to En</button> -->
-            </div>
+                </div>
 
-            <div id="article" class="markdown" style="overflow-y: scroll; max-height: 70vh; word-break: break-all; ">
-                <article v-for="(msg, ind) in all_messages" :key="'msg_' + ind" :style="ind > 0 ? 'margin-top: 2rem;' : ''">
-                    <div v-if="msg.role == 'user' || msg.role == 'system'">
-                        <div>
-                            <span v-if="msg.role == 'user'">You</span>
-                            <span v-if="msg.role == 'system'">System</span>
+                <div id="article" class="markdown"
+                    style="overflow-y: scroll; max-height: 70vh; word-break: break-all; ">
+                    <article v-for="(msg, ind) in all_messages" :key="'msg_' + ind"
+                        :style="ind > 0 ? 'margin-top: 2rem;' : ''">
+                        <div v-if="msg.role == 'user' || msg.role == 'system'">
+                            <div>
+                                <span v-if="msg.role == 'user'">You</span>
+                                <span v-if="msg.role == 'system'">System</span>
+                            </div>
+                            <div style="white-space:pre-wrap;">{{ msg.content }}</div>
                         </div>
-                        <div style="white-space:pre-wrap;">{{ msg.content }}</div>
-                    </div>
-                    <div v-else>
-                        <div>
-                            <span>chatGPT</span>
+                        <div v-else>
+                            <div>
+                                <span>chatGPT</span>
+                            </div>
+                            <p v-if="disp_raw_text_indexes.includes(ind)" style="white-space:pre-wrap;">{{ msg.content
+                                }}</p>
+                            <div v-else v-html="msg.content_html || msg.content"></div>
+                            <button v-if="msg.content_html.replace('<p>', '').replace('</p>', '') != msg.content"
+                                @click="toggleDisplay(ind)">
+                                <span v-if="disp_raw_text_indexes.includes(ind)">display formatted text</span><span
+                                    v-else>display
+                                    raw text</span>
+                            </button>
                         </div>
-                        <p v-if="disp_raw_text_indexes.includes(ind)" style="white-space:pre-wrap;">{{ msg.content }}</p>
-                        <div v-else v-html="msg.content_html || msg.content"></div>
-                        <button v-if="msg.content_html.replace('<p>', '').replace('</p>', '') != msg.content"
-                            @click="toggleDisplay(ind)">
-                            <span v-if="disp_raw_text_indexes.includes(ind)">display formatted text</span><span v-else>display
-                                raw text</span>
-                        </button>
-                    </div>
-                </article>
-                <article v-show="is_thinking || now_messaging" style="margin-top: 2rem;">
-                    <div><span>chatGPT</span></div>
-                    <div v-if="now_messaging" v-html="now_messaging"></div>
-                    <p v-else>I'm thinking...</p>
-                </article>
-                <div> for debug: now messageId: {{ lastWaitingMessageId }}</div>
-                <article v-if="all_messages.length > 0">
-                    <button @click="goOn">go on</button><button @click="cancel">cancel</button>
-                </article>
+                    </article>
+                    <article v-show="is_thinking || now_messaging" style="margin-top: 2rem;">
+                        <div><span>chatGPT</span></div>
+                        <div v-if="now_messaging" v-html="now_messaging"></div>
+                        <p v-else>I'm thinking...</p>
+                    </article>
+                    <div> for debug: now messageId: {{ lastWaitingMessageId }}</div>
+                    <article v-if="all_messages.length > 0">
+                        <button @click="goOn">go on</button><button @click="cancel">cancel</button>
+                    </article>
+                </div>
             </div>
-        </div>
         </Multipane>
     </div>
 </template>
@@ -415,4 +422,5 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4", "gpt-4o", "gpt-4-turbo", "gpt-3.5-t
 
 .logo.chatgpt:hover {
     filter: drop-shadow(0 0 2em #777);
-}</style>
+}
+</style>
