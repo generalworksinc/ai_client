@@ -1,6 +1,6 @@
 [package]
 name = "ai_client"
-version = "0.0.8"
+version = "0.0.9"
 description = "A ChatGPT Client Tauri App"
 authors = ["yuna"]
 edition = "2021"
@@ -14,7 +14,13 @@ tauri-build = { version = "1.5", features = [] }
 tauri = { version = "1.5", features = ["shell-open"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-reqwest = { version = "0.11.24", features = [ "blocking",  "json", "rustls-tls", "multipart", "stream" ] }
+reqwest = { version = "0.11.24", features = [
+    "blocking",
+    "json",
+    "rustls-tls",
+    "multipart",
+    "stream",
+] }
 anyhow = "1.0.79"
 futures = "0.3.30"
 markdown = "1.0.0-alpha.16"
