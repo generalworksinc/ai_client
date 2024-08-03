@@ -6,10 +6,9 @@ use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        AssistantStreamEvent, CreateAssistantRequestArgs,
-        CreateMessageRequestArgs, CreateRunRequestArgs,
-        CreateThreadRequestArgs, FunctionObject, MessageDeltaContent, MessageRole, RunObject,
-        SubmitToolOutputsRunRequest, ToolsOutputs,
+        AssistantStreamEvent, CreateAssistantRequestArgs, CreateMessageRequestArgs,
+        CreateRunRequestArgs, CreateThreadRequestArgs, FunctionObject, MessageDeltaContent,
+        MessageRole, RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
     },
     Client,
 };

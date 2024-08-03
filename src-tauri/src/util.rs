@@ -1,10 +1,7 @@
 use anyhow::Result;
 
 use crate::API_KEY;
-use async_openai::{
-    config::OpenAIConfig,
-    Client,
-};
+use async_openai::{config::OpenAIConfig, Client};
 
 pub fn create_client() -> Result<Client<OpenAIConfig>> {
     let api_key = API_KEY

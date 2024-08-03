@@ -12,17 +12,19 @@ mod assistants_stream;
 mod assistants_tool_calls;
 mod assistants_vision_chat;
 mod embedding;
+mod models;
 mod util;
 
 use futures::future;
-use futures::stream::{StreamExt};
+use futures::stream::StreamExt;
+use models::chat::ChatApiMessage;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{BufReader, Read, Write};
 use std::path::PathBuf;
 use std::time::Duration;
-use tauri::{CustomMenuItem, Menu, Submenu};
 use tauri::Window;
+use tauri::{CustomMenuItem, Menu, Submenu};
 // use futures_util::stream::StreamExt;
 use rand::prelude::*;
 
@@ -62,7 +64,6 @@ pub fn create_client() -> reqwest::Client {
         );
     }
 
-    
     reqwest::Client::builder()
         .use_rustls_tls()
         .default_headers(headers)
@@ -71,11 +72,7 @@ pub fn create_client() -> reqwest::Client {
 }
 
 ////////ChatGPT API Response /////////////////////////////////////////////////////
-#[derive(Serialize, Deserialize, Debug)]
-struct ChatApiMessage {
-    role: String,
-    content: String,
-}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct ChatApiMessageWithHtml {
     role: String,
@@ -625,15 +622,6 @@ async fn send_message_and_callback_stream(
                                         //emit every more 3 seconds.
                                         let now = chrono::Utc::now();
                                         let duration = now - prev_time;
-
-                                        //generate random chars
-                                        // let mut rng = rand::thread_rng();
-                                        // let rng: String = (0..20).into_iter()
-                                        // .map(|_| rng.sample(Alphanumeric))
-                                        // .map(char::from)
-                                        // .take(10)
-                                        // .collect();
-                                        // response_string.push_str((rng + "\\n<br>\\r\\n").as_str());
                                         response_string.push_str(&content);
 
                                         println!(
@@ -798,6 +786,7 @@ fn main() {
             assistants::make_assistant,
             assistants::delete_assistant,
             assistants::reflesh_assistants,
+            assistants::make_new_thread,
             assistants_example::assistents_test,
             assistants_stream::assistents_stream_test,
             assistants_file_search::assistents_file_search_test,

@@ -31,7 +31,7 @@ const errorMsg = ref("");
 const lastWaitingMessageId = ref("");
 const timeoutSec = ref(180);
 
-const titleList = ref([]);
+const assistantList = ref([]);
 const searchResultList = ref([]);
 
 let articleDom = null;
@@ -137,7 +137,7 @@ const refleshAssistants = () => {
 
     invoke('reflesh_assistants').then(async res => {
         console.log('response.', res);
-        titleList.value = JSON.parse(res);
+        assistantList.value = JSON.parse(res);
         // titles.values = 
     });
 };
@@ -155,7 +155,7 @@ const searchResultListSorted = computed(() => {
     });
 });
 const titleListSorted = computed(() => {
-    return titleList.value.sort((a, b) => {
+    return assistantList.value.sort((a, b) => {
         return a.created === b.created ? 0 : a.created < b.created ? 1 : -1;
     });
 });

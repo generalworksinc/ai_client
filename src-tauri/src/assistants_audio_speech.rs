@@ -4,10 +4,7 @@ use tauri::Window;
 use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
-    types::{
-        CreateSpeechRequestArgs,
-        SpeechModel, Voice,
-    },
+    types::{CreateSpeechRequestArgs, SpeechModel, Voice},
     Client,
 };
 use futures::StreamExt;

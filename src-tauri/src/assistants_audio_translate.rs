@@ -4,9 +4,7 @@ use tauri::Window;
 use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
-    types::{
-        AudioResponseFormat, CreateTranslationRequestArgs,
-    },
+    types::{AudioResponseFormat, CreateTranslationRequestArgs},
     Client,
 };
 use futures::StreamExt;

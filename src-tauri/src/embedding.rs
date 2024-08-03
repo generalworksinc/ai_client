@@ -1,15 +1,10 @@
-
 use futures::StreamExt;
 
 use serde::Deserialize;
 use tauri::Window;
 
 use crate::API_KEY;
-use async_openai::{
-    config::OpenAIConfig,
-    types::CreateEmbeddingRequestArgs,
-    Client,
-};
+use async_openai::{config::OpenAIConfig, types::CreateEmbeddingRequestArgs, Client};
 
 #[tauri::command]
 pub async fn embedding_test(

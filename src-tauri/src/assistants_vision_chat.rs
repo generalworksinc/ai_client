@@ -6,7 +6,8 @@ use async_openai::{
     config::OpenAIConfig,
     types::{
         ChatCompletionRequestMessageContentPartImageArgs,
-        ChatCompletionRequestMessageContentPartTextArgs, ChatCompletionRequestUserMessageArgs, CreateChatCompletionRequestArgs, ImageDetail, ImageUrlArgs,
+        ChatCompletionRequestMessageContentPartTextArgs, ChatCompletionRequestUserMessageArgs,
+        CreateChatCompletionRequestArgs, ImageDetail, ImageUrlArgs,
     },
     Client,
 };

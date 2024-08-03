@@ -12,9 +12,10 @@ use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        ChatCompletionMessageToolCall,
-        ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage, ChatCompletionRequestToolMessageArgs,
-        ChatCompletionRequestUserMessageArgs, ChatCompletionToolArgs, ChatCompletionToolType, CreateChatCompletionRequestArgs, FunctionObjectArgs,
+        ChatCompletionMessageToolCall, ChatCompletionRequestAssistantMessageArgs,
+        ChatCompletionRequestMessage, ChatCompletionRequestToolMessageArgs,
+        ChatCompletionRequestUserMessageArgs, ChatCompletionToolArgs, ChatCompletionToolType,
+        CreateChatCompletionRequestArgs, FunctionObjectArgs,
     },
     Client,
 };

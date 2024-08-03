@@ -4,9 +4,7 @@ use tauri::Window;
 use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
-    types::{
-        AudioResponseFormat, CreateTranscriptionRequestArgs, TimestampGranularity,
-    },
+    types::{AudioResponseFormat, CreateTranscriptionRequestArgs, TimestampGranularity},
     Client,
 };
 use futures::StreamExt;

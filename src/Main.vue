@@ -10,12 +10,22 @@ import { Multipane, MultipaneResizer } from './lib/multipane';
 import { v4 as uuidv4 } from 'uuid';
 import { AI_MODELS } from './constants';
 
+
+const CHAT_TYPE_LIST = [
+    { id: "chat", disp: "Chat" },
+    { id: "assistant", disp: "Assistant" },
+]
+
 const router = useRouter();
 
 const message = ref("");
 const all_messages = ref([]);
 
+const chatType = ref("chat");
+
 const now_messaging = ref("");
+const threadId = ref("");
+
 let now_messaging_raw = "";
 const is_thinking = ref(false);
 const disp_raw_text_indexes = ref([]);
@@ -23,19 +33,24 @@ const send_role = ref("user");
 const tempareture = ref(0.9);
 const template = ref("");
 const ai_name = ref("gpt-4o-mini");
+const assistant_id = ref("");
+
 const search_word = ref("");
 const errorMsg = ref("");
 const lastWaitingMessageId = ref("");
 const timeoutSec = ref(180);
 
 const titleList = ref([]);
+const assistantList = ref([]);
 const searchResultList = ref([]);
+
 
 let articleDom = null;
 
 let unlisten_stream_chunk = null;
 let unlisten_finish_chunks = null;
 let unlisten_stream_error = null;
+let unlisten_stream_openai_error = null;
 let unlisten_timeout_stream = null;
 
 onUnmounted(async () => {
@@ -47,6 +62,9 @@ onUnmounted(async () => {
     }
     if (unlisten_stream_error) {
         unlisten_stream_error();
+    }
+    if (unlisten_stream_openai_error) {
+        unlisten_stream_openai_error();
     }
     if (unlisten_timeout_stream) {
         unlisten_timeout_stream();
@@ -66,7 +84,18 @@ onMounted(async () => {
             }
         });
     });
+    unlisten_stream_openai_error = await listen('stream_openai_error', (event) => {
+        is_thinking.value = false;
+
+        now_messaging.value = `<h3>OpenAIError</h3><p>${event}</p>`;
+        nextTick(() => {
+            if (articleDom) {
+                articleDom.scrollTo(0, articleDom.scrollHeight);
+            }
+        });
+    });
     unlisten_stream_chunk = await listen('stream_chunk', (event) => {
+        console.log("unlisten_stream_chunk vent.")
         console.log('streamdata:', event.payload);
         const payload = event.payload;
 
@@ -75,6 +104,10 @@ onMounted(async () => {
             console.log('unlisten_finish_chunks called event.', event);
             now_messaging.value = payload.responseHtml;
             now_messaging_raw = payload.response;
+            if (payload.threadId) {
+                threadId.value = payload.threadId;
+            }
+
             nextTick(() => {
                 if (articleDom) {
                     articleDom.scrollTo(0, articleDom.scrollHeight);
@@ -120,6 +153,9 @@ onMounted(async () => {
                 now_messaging_raw = "";
                 lastWaitingMessageId.value = "";
             }
+            if (payload.threadId) {
+                threadId.value = payload.threadId;
+            }
             // nextTick(() => {
             //     if (articleDom) {
             //         articleDom.scrollTo(0, articleDom.scrollHeight);
@@ -127,7 +163,7 @@ onMounted(async () => {
             // });
         }
     });
-
+    refleshAssistants();
     refleshTitles();
 });
 const refleshTitles = () => {
@@ -200,6 +236,15 @@ const toggleDisplay = (index) => {
     }
 
 }
+const refleshAssistants = () => {
+
+    invoke('reflesh_assistants').then(async res => {
+        console.log('response.', res);
+        assistantList.value = JSON.parse(res);
+        // titles.values = 
+    });
+};
+
 const translateToJp = () => {
     message.value = "translate to japanese below.\n" + message.value;
     sendMessageStream();
@@ -209,26 +254,56 @@ const translateToEn = () => {
     sendMessageStream();
 }
 const sendMessageStream = () => {
+    console.log('sendMessageStream chat called.');
     const messageId = uuidv4();
     lastWaitingMessageId.value = messageId;
 
-    const userMessage = { 'role': send_role.value, 'content': message.value };
-    all_messages.value.push(userMessage);
-    now_messaging.value = "";
-    message.value = '';
+    if (chatType.value === "chat") {
+        threadId.value = '';
+        console.log('sendMessageStream chat called.');
+        const userMessage = { 'role': send_role.value, 'content': message.value };
+        all_messages.value.push(userMessage);
+        now_messaging.value = "";
+        message.value = '';
 
-    invoke('send_message_and_callback_stream', {
-        params: JSON.stringify({
-            messages: all_messages.value,
-            model: ai_name.value,
-            temperature: 0.9,
-            max_tokens: 2048,
-            messageId: messageId,
-        }),
-        timeoutSec: timeoutSec.value,
-    }).then(async res => {
-        console.log('send_message_and_callback_stream response.', res);
-    });
+        invoke('send_message_and_callback_stream', {
+            params: JSON.stringify({
+                messages: all_messages.value,
+                model: ai_name.value,
+                temperature: 0.9,
+                max_tokens: 2048,
+                messageId: messageId,
+            }),
+            timeoutSec: timeoutSec.value,
+        }).then(async res => {
+            console.log('send_message_and_callback_stream response.', res);
+        });
+    } else if (chatType.value === "assistant") {
+        console.log('sendMessageStream assystant called.');
+        const messageId = uuidv4();
+        lastWaitingMessageId.value = messageId;
+
+        const userMessage = { 'role': send_role.value, 'content': message.value };
+        all_messages.value.push(userMessage);
+        now_messaging.value = "";
+        message.value = '';
+
+
+        invoke('make_new_thread', {
+            params: JSON.stringify({
+                messages: all_messages.value.slice(-1),
+                assistant_id: assistant_id.value,
+                messageId: messageId,
+                threadId: threadId.value,
+            }),
+            // timeoutSec: timeoutSec.value,
+        }).then(async res => {
+            console.log('send_message_and_callback_stream response.', res);
+        });
+    } else {
+        console.log(chatType.value, ' called.');
+    }
+
 
     nextTick(() => {
         if (articleDom) {
@@ -242,6 +317,7 @@ const clear_search = () => {
     search_word.value = '';
     searchResultList.value = [];
     all_messages.value = [];
+    threadId.value = '';
 }
 const reflesh_index = () => {
     invoke('reflesh_index').then(async res => {
@@ -334,39 +410,59 @@ const TEMPLATES = [
             </div>
             <MultipaneResizer></MultipaneResizer>
             <div style="flex-direction: column; width:100%; flex: 1 1 0%; overflow: hidden;">
-                <div style="display: flex; justify-content: space-between;">
-                    <h3>Model:
-                        <select style="font-size: 2rem;" v-model="ai_name">
-                            <option v-for="value in AI_MODELS" :value="value" :key="'ai_name_' + value">
-                                {{ value }}</option>
-                        </select>
-                    </h3>
-                    <button @click="save_chat">save</button>
-                    <button @click="new_chat">new chat</button>
-                </div>
-
-                <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES" :key="'role_' + role">
-                        <input type="radio" v-model="send_role" :value="role" />{{ role }}
-                    </label></div>
                 <div>
-                    <div style="display: flex;">
-                        <span>tempareture: </span>
-                        <input type="text" v-model="tempareture" />
-                        <span>timeout: </span>
-                        <input type="text" v-model="timeoutSec" />
+                    <label v-for="chatTypeObj in CHAT_TYPE_LIST" :key="'chat_type_' + chatTypeObj.id"><input
+                            type="radio" v-model="chatType" :value="chatTypeObj.id" />{{ chatTypeObj.disp }}</label>
+                </div>
+                <div>{{ JSON.stringify(chatType) }}</div>
+                <div v-if="chatType === 'chat'">
+                    <div style="display: flex; justify-content: space-between;">
+                        <h3>Model:
+                            <select style="font-size: 2rem;" v-model="ai_name">
+                                <option v-for="value in AI_MODELS" :value="value" :key="'ai_name_' + value">
+                                    {{ value }}</option>
+                            </select>
+                        </h3>
+                        <button @click="save_chat">save</button>
+                        <button @click="new_chat">new chat</button>
                     </div>
-                    <div><button @click="add_template">add template</button>
-                        <select v-model="template">
-                            <option v-for="value in TEMPLATES" :value="value" :key="'template_' + value">{{ value }}
-                            </option>
-                        </select>
+
+                    <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES"
+                            :key="'role_' + role">
+                            <input type="radio" v-model="send_role" :value="role" />{{ role }}
+                        </label></div>
+                    <div>
+                        <div style="display: flex;">
+                            <span>tempareture: </span>
+                            <input type="text" v-model="tempareture" />
+                            <span>timeout: </span>
+                            <input type="text" v-model="timeoutSec" />
+                        </div>
+                        <div><button @click="add_template">add template</button>
+                            <select v-model="template">
+                                <option v-for="value in TEMPLATES" :value="value" :key="'template_' + value">{{ value }}
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div v-else-if="chatType === 'assistant'">
+                    <div style="display: flex; justify-content: space-between;">
+                        <h3>Assistant:
+                            <select style="font-size: 2rem;" v-model="assistant_id">
+                                <option v-for="assistant in assistantList" :value="assistant.id"
+                                    :key="'assistant_id_' + assistant.id">
+                                    {{ assistant.name }}</option>
+                            </select>
+                        </h3>
+                        <div>thread: {{ threadId }}</div>
                     </div>
                 </div>
                 <div style="display: flex; align-items: flex-end;">
                     <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
                         style="height: 3rem; width: 80%;"></textarea>
                     <!-- <button @click="sendMessage">send</button> -->
-                    <button @click="sendMessageStream">send</button>
+                    <button @click="sendMessageStream">send！</button>
                     <!-- <button @click="translateToJp">translate to Jp</button>
                 <button @click="translateToEn">translate to En</button> -->
                 </div>

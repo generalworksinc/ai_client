@@ -5,11 +5,10 @@ use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        AssistantToolFileSearchResources, AssistantToolsFileSearch,
-        CreateAssistantRequestArgs, CreateFileRequest,
-        CreateMessageRequestArgs, CreateRunRequest, CreateThreadRequest, CreateVectorStoreRequest, FilePurpose,
-        MessageAttachment, MessageAttachmentTool, MessageContent, MessageRole,
-        ModifyAssistantRequest, RunStatus,
+        AssistantToolFileSearchResources, AssistantToolsFileSearch, CreateAssistantRequestArgs,
+        CreateFileRequest, CreateMessageRequestArgs, CreateRunRequest, CreateThreadRequest,
+        CreateVectorStoreRequest, FilePurpose, MessageAttachment, MessageAttachmentTool,
+        MessageContent, MessageRole, ModifyAssistantRequest, RunStatus,
     },
     Client,
 };
