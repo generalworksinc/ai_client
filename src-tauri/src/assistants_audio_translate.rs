@@ -1,21 +1,11 @@
 use serde::Deserialize;
-use std::error::Error;
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
-use tauri::{Manager, Window, WindowUrl};
+use tauri::Window;
 
 use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        AssistantStreamEvent, AssistantToolCodeInterpreterResources,
-        AssistantToolFileSearchResources, AssistantTools, AssistantToolsFileSearch,
-        AudioResponseFormat, CreateAssistantRequestArgs, CreateFileRequest, CreateMessageRequest,
-        CreateMessageRequestArgs, CreateRunRequest, CreateRunRequestArgs, CreateThreadRequest,
-        CreateThreadRequestArgs, CreateTranscriptionRequestArgs, CreateTranslationRequestArgs,
-        CreateVectorStoreRequest, FilePurpose, FunctionObject, MessageAttachment,
-        MessageAttachmentTool, MessageContent, MessageContentTextAnnotations, MessageDeltaContent,
-        MessageRole, ModifyAssistantRequest, RunObject, RunStatus, SubmitToolOutputsRunRequest,
-        TimestampGranularity, ToolsOutputs,
+        AudioResponseFormat, CreateTranslationRequestArgs,
     },
     Client,
 };

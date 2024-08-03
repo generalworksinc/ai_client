@@ -1,7 +1,5 @@
 use serde::Deserialize;
-use std::str::FromStr;
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
-use tauri::{Manager, Window, WindowUrl};
+use tauri::Window;
 
 use crate::API_KEY;
 use async_openai::{
@@ -74,7 +72,7 @@ async fn assistant_example(question: &str) -> anyhow::Result<()> {
 
     println!("--- How can I help you?");
     //get user input
-    let mut input = question.to_string();
+    let input = question.to_string();
 
     //create a message for the thread
     let message = CreateMessageRequestArgs::default()

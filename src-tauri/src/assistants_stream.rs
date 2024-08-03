@@ -1,14 +1,13 @@
 use serde::Deserialize;
 use std::error::Error;
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
-use tauri::{Manager, Window, WindowUrl};
+use tauri::Window;
 
 use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        AssistantStreamEvent, CreateAssistantRequestArgs, CreateMessageRequest,
-        CreateMessageRequestArgs, CreateRunRequest, CreateRunRequestArgs, CreateThreadRequest,
+        AssistantStreamEvent, CreateAssistantRequestArgs,
+        CreateMessageRequestArgs, CreateRunRequestArgs,
         CreateThreadRequestArgs, FunctionObject, MessageDeltaContent, MessageRole, RunObject,
         SubmitToolOutputsRunRequest, ToolsOutputs,
     },
@@ -117,7 +116,7 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()> {
 
     println!("--- How can I help you?");
     //get user input
-    let mut input = question.to_string();
+    let input = question.to_string();
 
     //create a message for the thread
     let message = CreateMessageRequestArgs::default()

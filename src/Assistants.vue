@@ -146,7 +146,7 @@ const loadContent = (id) => {
         console.log('load response.', res);
         console.log('data; ', JSON.parse(res));
         // const lastAssistanceMessage = { 'role': 'assistant', 'content': event.payload, 'content_html': now_messaging.value };
-        all_messages.value = JSON.parse(res);
+        // all_messages.value = JSON.parse(res);
     });
 }
 const searchResultListSorted = computed(() => {
@@ -163,14 +163,14 @@ const titleListSorted = computed(() => {
 const changeContent = (title) => {
     invoke('change_message', { id: title.id, name: title.name }).then(async res => {
         title.isEditing = false;
-        refleshTitles();
+        refleshAssistants();
     });
 }
 
-const deleteContent = (id) => {
-    invoke('delete_message', { id }).then(async res => {
-        console.log('delete response.', res);
-        refleshTitles();
+const deleteAssistant = (id) => {
+    invoke('delete_assistant', { id }).then(async res => {
+        console.log('delete_assistant.', res);
+        refleshAssistants();
     });
 }
 const clear_assistant = () => {
@@ -187,7 +187,7 @@ const save_assistant = () => {
         })
     }).then(async res => {
         clear_search();
-        refleshTitles();
+        refleshAssistants();
         console.log('response.', res);
     });
 };
@@ -228,7 +228,7 @@ const clear_search = () => {
     errorMsg.value = '';
     search_word.value = '';
     searchResultList.value = [];
-    all_messages.value = [];
+    // all_messages.value = [];
 }
 
 const search = () => {
@@ -274,7 +274,7 @@ const search = () => {
                             <div style="flex: glow; max-width: 400px;" @click="loadContent(title.id)">{{ title.name ||
                                 '(タイトルなし)' }}</div>
                             <div style="flex: 1">
-                                <button @click="deleteContent(title.id)" class="button-sm">削</button>
+                                <button @click="deleteAssistant(title.id)" class="button-sm">削</button>
                                 <button @click="() => title.isEditing = true" class="button-sm">変</button>
                             </div>
                             <!--<div>

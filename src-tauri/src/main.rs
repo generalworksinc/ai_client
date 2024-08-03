@@ -14,31 +14,25 @@ mod assistants_vision_chat;
 mod embedding;
 mod util;
 
-use anyhow::Context;
 use futures::future;
-use futures::stream::{self, StreamExt};
-use rand::distributions::Alphanumeric;
-use serde_json::Value;
-use std::f32::consts::E;
+use futures::stream::{StreamExt};
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::{BufReader, Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
-use tauri::{Manager, Window, WindowUrl};
+use tauri::{CustomMenuItem, Menu, Submenu};
+use tauri::Window;
 // use futures_util::stream::StreamExt;
 use rand::prelude::*;
-use tokio::runtime::Runtime;
-use tokio::task;
 
-use chrono::{DateTime, TimeZone, Utc};
-use once_cell::sync::{Lazy, OnceCell};
-use reqwest::{header, multipart, Body, Client};
+use chrono::{TimeZone, Utc};
+use once_cell::sync::OnceCell;
+use reqwest::header;
 use serde::{Deserialize, Serialize};
 use std::sync::LazyLock;
 
-use std::sync::{Arc, RwLock};
+use std::sync::RwLock;
 // pub static mut API_KEY: String = String::new();
 pub static API_KEY: LazyLock<RwLock<String>> = LazyLock::new(|| RwLock::new(String::new()));
 
@@ -68,12 +62,12 @@ pub fn create_client() -> reqwest::Client {
         );
     }
 
-    let client = reqwest::Client::builder()
+    
+    reqwest::Client::builder()
         .use_rustls_tls()
         .default_headers(headers)
         .build()
-        .unwrap();
-    return client;
+        .unwrap()
 }
 
 ////////ChatGPT API Response /////////////////////////////////////////////////////
@@ -171,7 +165,7 @@ async fn set_api_key(
 
     let config_toml_file_path = chat_gpt_config_dir.join("config.toml");
 
-    if (!config_toml_file_path.exists()) {
+    if !config_toml_file_path.exists() {
         std::fs::create_dir_all(chat_gpt_config_dir.clone()).unwrap();
         let mut f = File::create(config_toml_file_path.clone()).unwrap();
         let config_file = toml::to_string(&Config::default()).unwrap();
@@ -179,7 +173,7 @@ async fn set_api_key(
             .expect("Unable to write config data");
     }
 
-    if let Ok(mut f) = File::open(config_toml_file_path.clone()) {
+    if let Ok(f) = File::open(config_toml_file_path.clone()) {
         let mut buf_reader = BufReader::new(f);
         let mut config_data: Vec<u8> = vec![];
         buf_reader.read_to_end(&mut config_data).unwrap();
@@ -210,7 +204,7 @@ async fn set_api_key(
         return Ok("save config data.".into());
     }
 
-    return Ok("can't save config data.".into());
+    Ok("can't save config data.".into())
 }
 #[tauri::command]
 async fn get_api_key(app_handle: tauri::AppHandle) -> Result<String, String> {
@@ -489,7 +483,7 @@ async fn get_title(sentense: String) -> anyhow::Result<String> {
         //     "response: {:#?}",
         //     response.json::<serde_json::Value>().await.ok()
         // );
-        return Err(anyhow::Error::msg("server error"));
+        Err(anyhow::Error::msg("server error"))
     }
 }
 
@@ -507,7 +501,7 @@ async fn load_messages(app_handle: tauri::AppHandle, id: String) -> Result<Strin
         )
         .unwrap();
         for message in messages.iter_mut() {
-            message.content_html = Some(markdown::to_html(message.content.as_str()).into());
+            message.content_html = Some(markdown::to_html(message.content.as_str()));
         }
 
         Ok(serde_json::to_string(&messages).unwrap())
@@ -550,7 +544,7 @@ async fn reflesh_titles(app_handle: tauri::AppHandle) -> Result<String, String> 
             return Ok(serde_json::to_string(&data_vec).unwrap());
         }
     }
-    return Err("".to_string());
+    Err("".to_string())
 }
 
 #[tauri::command]
@@ -727,14 +721,14 @@ fn init_config(app: &tauri::App) -> anyhow::Result<()> {
 
     println!("config_toml_file_path: {:#?}", config_toml_file_path);
 
-    if (!config_toml_file_path.exists()) {
+    if !config_toml_file_path.exists() {
         std::fs::create_dir_all(chat_gpt_config_dir.clone()).unwrap();
         let mut f = File::create(config_toml_file_path.clone()).unwrap();
         let config_file = toml::to_string(&Config::default()).unwrap();
         f.write_all(config_file.as_bytes())
             .expect("Unable to write config data");
     } else {
-        let mut f = File::open(config_toml_file_path.clone()).expect("can't open config file.");
+        let f = File::open(config_toml_file_path.clone()).expect("can't open config file.");
         let mut buf_reader = BufReader::new(f);
         let mut config_data: Vec<u8> = vec![];
         buf_reader.read_to_end(&mut config_data).unwrap();
@@ -802,6 +796,7 @@ fn main() {
             search_conversations,
             reflesh_index,
             assistants::make_assistant,
+            assistants::delete_assistant,
             assistants::reflesh_assistants,
             assistants_example::assistents_test,
             assistants_stream::assistents_stream_test,
@@ -815,7 +810,7 @@ fn main() {
             embedding::embedding_test,
         ])
         .setup(|app| {
-            init_config(&app).expect("config init error");
+            init_config(app).expect("config init error");
             Ok(())
         })
         .run(context)

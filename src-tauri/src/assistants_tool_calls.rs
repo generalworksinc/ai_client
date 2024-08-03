@@ -1,6 +1,4 @@
-use anyhow::Context;
 use std::collections::HashMap;
-use std::io::{stdout, Write};
 
 use futures::StreamExt;
 use rand::seq::SliceRandom;
@@ -8,28 +6,15 @@ use rand::{thread_rng, Rng};
 use serde_json::{json, Value};
 
 use serde::Deserialize;
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
-use tauri::{Manager, Window, WindowUrl};
+use tauri::Window;
 
 use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        AssistantStreamEvent, AssistantToolCodeInterpreterResources,
-        AssistantToolFileSearchResources, AssistantTools, AssistantToolsFileSearch,
-        AudioResponseFormat, ChatCompletionMessageToolCall,
-        ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage,
-        ChatCompletionRequestMessageContentPartImageArgs,
-        ChatCompletionRequestMessageContentPartTextArgs, ChatCompletionRequestToolMessageArgs,
-        ChatCompletionRequestUserMessageArgs, ChatCompletionToolArgs, ChatCompletionToolType,
-        CreateAssistantRequestArgs, CreateChatCompletionRequestArgs, CreateFileRequest,
-        CreateMessageRequest, CreateMessageRequestArgs, CreateRunRequest, CreateRunRequestArgs,
-        CreateSpeechRequestArgs, CreateThreadRequest, CreateThreadRequestArgs,
-        CreateTranscriptionRequestArgs, CreateTranslationRequestArgs, CreateVectorStoreRequest,
-        FilePurpose, FunctionObject, FunctionObjectArgs, ImageDetail, ImageUrlArgs,
-        MessageAttachment, MessageAttachmentTool, MessageContent, MessageContentTextAnnotations,
-        MessageDeltaContent, MessageRole, ModifyAssistantRequest, RunObject, RunStatus,
-        SpeechModel, SubmitToolOutputsRunRequest, TimestampGranularity, ToolsOutputs, Voice,
+        ChatCompletionMessageToolCall,
+        ChatCompletionRequestAssistantMessageArgs, ChatCompletionRequestMessage, ChatCompletionRequestToolMessageArgs,
+        ChatCompletionRequestUserMessageArgs, ChatCompletionToolArgs, ChatCompletionToolType, CreateChatCompletionRequestArgs, FunctionObjectArgs,
     },
     Client,
 };

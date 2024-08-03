@@ -1,27 +1,44 @@
 use crate::util::create_client;
 use crate::{DIR_ASSISTANTS, SAVING_DIRECTORY};
-use async_openai::types::AssistantObject;
 use serde::Deserialize;
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
-use std::str::FromStr;
-use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
-use tauri::{Manager, Window, WindowUrl};
+use tauri::Window;
 
-use chrono::{DateTime, TimeZone, Utc};
-use once_cell::sync::{Lazy, OnceCell};
-use serde::Serialize;
+use chrono::{TimeZone, Utc};
 
-use crate::API_KEY;
-use async_openai::{
-    config::OpenAIConfig,
-    types::{
-        CreateAssistantRequestArgs, CreateMessageRequestArgs, CreateRunRequestArgs,
-        CreateThreadRequestArgs, MessageContent, MessageRole, RunStatus,
-    },
-    Client,
-};
+use async_openai::types::CreateAssistantRequestArgs;
+
+
+#[tauri::command]
+pub async fn delete_assistant(app_handle: tauri::AppHandle, id: String) -> Result<String, String> {
+    //create a client
+    let client = create_client().map_err(|x| format!("failed to create client: {:?}", x))?;
+    //delete assistant
+    let delete_err = client.assistants().delete(id.as_str()).await.err();
+    if let Some(error) = delete_err {
+        let delete_err_str = format!("failed to delete assistant: {:?}", error);
+        //すでに削除されている場合はエラーを無視
+        if !delete_err_str.contains("No assistant found") {
+            return Err(delete_err_str);
+        }
+    }
+    
+    println!("delete assistant: {}", id);
+
+    let dir = unsafe { SAVING_DIRECTORY.clone() };
+    let file_path_assistants = std::path::Path::new(dir.as_str())
+        .join(DIR_ASSISTANTS)
+        .join(id.clone());
+    
+    if file_path_assistants.exists() {
+        //削除
+        std::fs::remove_file(file_path_assistants).map_err(|x| x.to_string())?;
+    }
+    
+    Ok("削除しました".to_string())
+}
 
 #[tauri::command]
 pub async fn reflesh_assistants(app_handle: tauri::AppHandle) -> Result<String, String> {
@@ -54,7 +71,7 @@ pub async fn reflesh_assistants(app_handle: tauri::AppHandle) -> Result<String, 
             return Ok(serde_json::to_string(&data_vec).unwrap());
         }
     }
-    return Err("".to_string());
+    Err("".to_string())
 }
 
 #[tauri::command]
@@ -120,8 +137,8 @@ async fn exec(assistant_name: &str, question: &str, instructions: &str) -> anyho
     let file_path = assistants_dir_path.join(assistant_object.id.clone());
     let mut f = File::create(file_path).unwrap();
     let json_data = serde_json::to_string(&assistant_object)?;
-    f.write_all(json_data.as_bytes());
+    f.write_all(json_data.as_bytes())?;
 
-    client.assistants().delete(&assistant_object.id).await?;
+    // client.assistants().delete(&assistant_object.id).await?;
     Ok(())
 }
