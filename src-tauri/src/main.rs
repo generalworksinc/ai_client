@@ -1,6 +1,20 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod util;
+mod assistants;
+mod assistants_example;
+mod assistants_stream;
+mod assistants_file_search;
+mod assistants_code_interpreter;
+mod assistants_audio_transcribe;
+mod assistants_audio_translate;
+mod assistants_audio_speech;
+mod assistants_vision_chat;
+mod assistants_tool_calls;
+mod embedding;
+
+use anyhow::Context;
 use futures::future;
 use futures::stream::{self, StreamExt};
 use rand::distributions::Alphanumeric;
@@ -23,10 +37,18 @@ use reqwest::{header, multipart, Body, Client};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc, TimeZone};
 use once_cell::sync::{Lazy, OnceCell};
-static mut API_KEY: String = String::new();
-static mut SAVING_DIRECTORY: String = String::new();
+use std::sync::LazyLock;
+
+use std::sync::{Arc, RwLock};
+// pub static mut API_KEY: String = String::new();
+pub static API_KEY: LazyLock<RwLock<String>> = LazyLock::new(|| {
+    RwLock::new(String::new())
+});
+
+pub static mut SAVING_DIRECTORY: String = String::new();
 const DIR_TITLE: &str = "titles";
 const DIR_CONVERSATION: &str = "conversations";
+const DIR_ASSISTANTS: & str = "assistants";
 
 pub static PATH_DIR_CHATGPT_CONFIG:  OnceCell<PathBuf> = OnceCell::new();
 
@@ -42,7 +64,7 @@ pub fn create_client() -> reqwest::Client {
     unsafe {
         headers.insert(
             "Authorization",
-            header::HeaderValue::from_str(format!("Bearer {}", API_KEY).as_str()).unwrap(),
+            header::HeaderValue::from_str(format!("Bearer {}", API_KEY.read().unwrap().as_str()).as_str()).unwrap(),
         );
     }
 
@@ -174,8 +196,12 @@ async fn set_api_key(app_handle: tauri::AppHandle, api_key: String, saving_direc
         let mut f = File::create(config_toml_file_path.clone()).unwrap();
         f.write_all(config_file.as_bytes())
             .expect("Unable to write config data");
-        unsafe {
-            API_KEY = api_key;
+        // unsafe {
+        //     API_KEY = api_key;
+        // }
+        {
+            let mut key = API_KEY.write().unwrap();
+            *key = api_key;
         }
         return Ok("save config data.".into());
     }
@@ -184,9 +210,10 @@ async fn set_api_key(app_handle: tauri::AppHandle, api_key: String, saving_direc
 }
 #[tauri::command]
 async fn get_api_key(app_handle: tauri::AppHandle) -> Result<String, String> {
+    let a = API_KEY.read().unwrap().clone();
     let res = unsafe { 
         serde_json::json!({
-            "apiKey": API_KEY.clone(),
+            "apiKey": a,
             "savingDirectory": SAVING_DIRECTORY.clone(),
         })
     };
@@ -278,11 +305,11 @@ async fn save_chat(
         }
     }
     let mut title_f = File::create(title_file).unwrap();
-    println!("title_content: {:#?}", title_content.clone());
+    // println!("title_content: {:#?}", title_content.clone());
     if title_content.len() > 30 {
         match get_title(title_content.clone()).await {
             Ok(title) => {
-                println!("title: {:#?}", title);
+                // println!("title: {:#?}", title);
                 title_f.write_all(title.as_bytes()).unwrap();
             }
             Err(err) => {
@@ -373,7 +400,7 @@ fn refresh_index_db() -> anyhow::Result<()> {
         for entry in read_dir.flatten() {
             let file_path = entry.path();
             let file_name = file_path.file_name().unwrap().to_string_lossy();
-            println!("file_name: {:#?}", file_name);
+            // println!("file_name: {:#?}", file_name);
             tree.insert( std::fs::read_to_string(&file_path)?.as_bytes(), file_name.as_bytes())?;
         }
     }
@@ -385,7 +412,7 @@ fn refresh_index_db() -> anyhow::Result<()> {
             let file_path = entry.path();
             let file_name = file_path.file_name().unwrap().to_string_lossy();
             let title = std::fs::read_to_string(&file_path)?;
-            println!("title {:#?}", title );
+            // println!("title {:#?}", title );
             title_tree.insert(  file_name.as_bytes(), title.as_bytes())?;
         }
     }
@@ -671,11 +698,15 @@ fn init_config(app: &tauri::App) -> anyhow::Result<()> {
         let mut buf_reader = BufReader::new(f);
         let mut config_data: Vec<u8> = vec![];
         buf_reader.read_to_end(&mut config_data).unwrap();
-        let mut config: Config =
+        let config: Config =
             toml::from_str(String::from_utf8(config_data).unwrap().as_str()).unwrap();
         unsafe {
-            API_KEY = config.keys.chatgpt.unwrap_or_default();
+            // API_KEY = config.keys.chatgpt.unwrap_or_default();
             SAVING_DIRECTORY = config.saving_directory.unwrap_or_default();
+        }
+        {
+            let mut key = API_KEY.write().unwrap();
+            *key = config.keys.chatgpt.unwrap_or_default();
         }
     }
 
@@ -686,7 +717,9 @@ fn init_config(app: &tauri::App) -> anyhow::Result<()> {
 fn main() {
     let main_page = CustomMenuItem::new("main".to_string(), "Main");
     let settings = CustomMenuItem::new("settings".to_string(), "Settings");
-    let submenu = Submenu::new("Menu", Menu::new().add_item(main_page).add_item(settings));
+    let assistants = CustomMenuItem::new("assistants".to_string(), "Assistants");
+    let samples = CustomMenuItem::new("samples".to_string(), "Samples");
+    let submenu = Submenu::new("Menu", Menu::new().add_item(main_page).add_item(assistants).add_item(samples).add_item(settings));
     // let menu = Menu::new().add_submenu(submenu);
     let context = tauri::generate_context!();
     let menu = tauri::Menu::os_default(&context.package_info().name).add_submenu(submenu);
@@ -697,10 +730,18 @@ fn main() {
             "settings" => {
                 event.window().emit("open_settings", "").unwrap();
             }
+            "assistants" => {
+                event.window().emit("open_assistants", "").unwrap();
+            }
+            "samples" => {
+                event.window().emit("open_samples", "").unwrap();
+            }
             "main" => {
                 event.window().emit("open_main", "").unwrap();
             }
-            _ => {}
+            _ => {
+                println!("menu event: {:?}", event.menu_item_id());
+            }
         })
         .invoke_handler(tauri::generate_handler![
             save_chat,
@@ -713,6 +754,18 @@ fn main() {
             change_message,
             search_conversations,
             reflesh_index,
+            assistants::make_assistant,
+            assistants::reflesh_assistants,
+            assistants_example::assistents_test,
+            assistants_stream::assistents_stream_test,
+            assistants_file_search::assistents_file_search_test,
+            assistants_code_interpreter::assistents_code_interpreter_test,
+            assistants_audio_transcribe::assistants_audio_transcribe_test,
+            assistants_audio_translate::assistants_audio_translate_test,
+            assistants_audio_speech::assistants_audio_speech_test,
+            assistants_vision_chat::assistants_vision_chat_test,
+            assistants_tool_calls::assistants_tool_calls_test,
+            embedding::embedding_test,
         ])
         .setup(|app| {
             init_config(&app).expect("config init error");

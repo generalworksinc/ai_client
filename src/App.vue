@@ -3,7 +3,7 @@
 import { emit, listen } from '@tauri-apps/api/event';
 // import { register, unregister, unregisterAll  } from '@tauri-apps/api/globalShortcut';
 import { useRouter } from 'vue-router';
-import { ref, nextTick, onMounted, onUnmounted} from "vue";
+import { ref, nextTick, onMounted, onUnmounted } from "vue";
 
 
 const router = useRouter();
@@ -21,6 +21,12 @@ onMounted(async () => {
   });
   const unlisten_open_main = await listen('open_main', (event) => {
     router.push("/");
+  });
+  const unlisten_open_assistants = await listen('open_assistants', (event) => {
+    router.push("/assistants");
+  });
+  const unlisten_open_samples = await listen('open_samples', (event) => {
+    router.push("/samples");
   });
 });
 </script>

@@ -8,6 +8,7 @@ import { useRouter } from 'vue-router';
 import { ref, nextTick, onMounted, onUnmounted, computed } from "vue";
 import { Multipane, MultipaneResizer } from './lib/multipane';
 import { v4 as uuidv4 } from 'uuid';
+import { AI_MODELS } from './constants';
 
 const router = useRouter();
 
@@ -285,7 +286,7 @@ const TEMPLATES = [
     "First,", "Let's think about this logically.",
     "Let's solve this problem by splitting it into steps."];
 
-const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4o-mini", "gpt-4", "gpt-4o", "gpt-4-turbo"];
+
 </script>
 
 <template>
@@ -303,7 +304,7 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4o-mini", "gpt-4", "gpt-4o", "gpt-4-tur
                     style="overflow-y: scroll; max-height: 90vh;">
                     <div v-for="searchResult in searchResultListSorted" @click="loadContent(searchResult.id)"
                         :key="'search_result_id_' + searchResult.id"
-                        style="max-width: 400px; font-weight: bold; color: #CA2A2A; #ewe; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        style="max-width: 400px; font-weight: bold; color: #CA2A2A; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         {{ searchResult.title }}
                     </div>
                 </div>
