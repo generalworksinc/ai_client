@@ -1,25 +1,25 @@
+use serde::Deserialize;
 use std::str::FromStr;
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 use tauri::{Manager, Window, WindowUrl};
-use serde::Deserialize;
 
-
+use crate::API_KEY;
 use async_openai::{
+    config::OpenAIConfig,
     types::{
         CreateAssistantRequestArgs, CreateMessageRequestArgs, CreateRunRequestArgs,
         CreateThreadRequestArgs, MessageContent, MessageRole, RunStatus,
     },
     Client,
-    config::OpenAIConfig,
 };
-use crate::API_KEY;
-
 
 #[tauri::command]
-pub async fn assistents_test(awindow: Window,
+pub async fn assistents_test(
+    awindow: Window,
     app_handle: tauri::AppHandle,
     params: String,
-    timeout_sec: Option<u64>,) -> Result<String, String> {
+    timeout_sec: Option<u64>,
+) -> Result<String, String> {
     #[derive(Deserialize)]
     struct PostData {
         message: Option<String>,
@@ -28,19 +28,20 @@ pub async fn assistents_test(awindow: Window,
     }
     println!("call assistents_test: {:#?}", params);
     let postData = serde_json::from_str::<PostData>(params.as_str()).unwrap();
-    match assistant_example(postData.message.unwrap_or_default().as_str()).await.map_err(|e| format!("{:?}", e)) {
-        Ok(_) => {
-            Ok("テスト終了".to_string())
-        }
-        Err(err) => {
-            Err(err)
-        }
+    match assistant_example(postData.message.unwrap_or_default().as_str())
+        .await
+        .map_err(|e| format!("{:?}", e))
+    {
+        Ok(_) => Ok("テスト終了".to_string()),
+        Err(err) => Err(err),
     }
 }
 
-async fn assistant_example(question: &str) -> anyhow::Result<()>{
+async fn assistant_example(question: &str) -> anyhow::Result<()> {
     //create a client
-    let client = Client::with_config(OpenAIConfig::new().with_api_key(API_KEY.read().map(|x| x.clone()).unwrap_or_default()));
+    let client = Client::with_config(
+        OpenAIConfig::new().with_api_key(API_KEY.read().map(|x| x.clone()).unwrap_or_default()),
+    );
 
     //ask the user for the name of the assistant
     println!("--- Enter the name of your assistant");
@@ -52,7 +53,9 @@ async fn assistant_example(question: &str) -> anyhow::Result<()>{
     println!("--- Enter the instruction set for your new assistant");
     //get user input
     // let instructions = "あなたはIQ300の超天才です。どんな問題についても膨大な知識から３つの回答を引き出せます。一つは汎用的かつ最適な回答、１つは超極論、もう一つはその極論の真逆にある超極論です。".to_string();
-    let instructions = "あなたはギャルな魔王です。世界を支配する魔王として、ギャル語で質問に答えてください".to_string();
+    let instructions =
+        "あなたはギャルな魔王です。世界を支配する魔王として、ギャル語で質問に答えてください"
+            .to_string();
     // std::io::stdin().read_line(&mut instructions).unwrap();
 
     //create the assistant
@@ -87,7 +90,7 @@ async fn assistant_example(question: &str) -> anyhow::Result<()>{
         .create(message)
         .await?;
 
-        println!("thread:2 {:#?}", thread);
+    println!("thread:2 {:#?}", thread);
     //create a run for the thread
     let run_request = CreateRunRequestArgs::default()
         .assistant_id(assistant_id)
@@ -168,6 +171,9 @@ async fn assistant_example(question: &str) -> anyhow::Result<()>{
     println!("thread_id: {:?}", thread.id);
     client.assistants().delete(assistant_id).await?;
     client.threads().delete(&thread.id).await?;
-    client.threads().delete("thread_FUX4wgtpMMxpOQjN2wZ2lYhp").await?;
+    client
+        .threads()
+        .delete("thread_FUX4wgtpMMxpOQjN2wZ2lYhp")
+        .await?;
     Ok(())
 }

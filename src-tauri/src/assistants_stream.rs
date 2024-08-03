@@ -1,28 +1,28 @@
+use serde::Deserialize;
 use std::error::Error;
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 use tauri::{Manager, Window, WindowUrl};
-use serde::Deserialize;
 
+use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        AssistantStreamEvent, CreateAssistantRequestArgs, CreateMessageRequest, CreateRunRequest,
-        CreateThreadRequest, FunctionObject, MessageDeltaContent, MessageRole, RunObject,
+        AssistantStreamEvent, CreateAssistantRequestArgs, CreateMessageRequest,
+        CreateMessageRequestArgs, CreateRunRequest, CreateRunRequestArgs, CreateThreadRequest,
+        CreateThreadRequestArgs, FunctionObject, MessageDeltaContent, MessageRole, RunObject,
         SubmitToolOutputsRunRequest, ToolsOutputs,
-        CreateMessageRequestArgs, CreateRunRequestArgs,
-        CreateThreadRequestArgs,
     },
     Client,
 };
 use futures::StreamExt;
-use crate::API_KEY;
-
 
 #[tauri::command]
-pub async fn assistents_stream_test(awindow: Window,
+pub async fn assistents_stream_test(
+    awindow: Window,
     app_handle: tauri::AppHandle,
     params: String,
-    timeout_sec: Option<u64>,) -> Result<String, String> {
+    timeout_sec: Option<u64>,
+) -> Result<String, String> {
     #[derive(Deserialize)]
     struct PostData {
         message: Option<String>,
@@ -31,19 +31,20 @@ pub async fn assistents_stream_test(awindow: Window,
     }
     println!("call assistents_stream_test: {:#?}", params);
     let postData = serde_json::from_str::<PostData>(params.as_str()).unwrap();
-    match assistant_stream_example(postData.message.unwrap_or_default().as_str()).await.map_err(|e| format!("{:?}", e)) {
-        Ok(_) => {
-            Ok("テスト終了".to_string())
-        }
-        Err(err) => {
-            Err(err)
-        }
+    match assistant_stream_example(postData.message.unwrap_or_default().as_str())
+        .await
+        .map_err(|e| format!("{:?}", e))
+    {
+        Ok(_) => Ok("テスト終了".to_string()),
+        Err(err) => Err(err),
     }
 }
 
-async fn assistant_stream_example(question: &str) -> anyhow::Result<()>{
+async fn assistant_stream_example(question: &str) -> anyhow::Result<()> {
     //create a client
-    let client = Client::with_config(OpenAIConfig::new().with_api_key(API_KEY.read().map(|x| x.clone()).unwrap_or_default()));
+    let client = Client::with_config(
+        OpenAIConfig::new().with_api_key(API_KEY.read().map(|x| x.clone()).unwrap_or_default()),
+    );
 
     //ask the user for the name of the assistant
     println!("--- Enter the name of your assistant");
@@ -55,7 +56,8 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()>{
     println!("--- Enter the instruction set for your new assistant");
     //get user input
     // let instructions = "あなたはIQ300の超天才です。どんな問題についても膨大な知識から３つの回答を引き出せます。一つは汎用的かつ最適な回答、１つは超極論、もう一つはその極論の真逆にある超極論です。".to_string();
-    let instructions = "あなたは天気botです。用意されている関数を使用して質問に答えます。".to_string();
+    let instructions =
+        "あなたは天気botです。用意されている関数を使用して質問に答えます。".to_string();
     // std::io::stdin().read_line(&mut instructions).unwrap();
 
     //create the assistant
@@ -85,7 +87,7 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()>{
                     }
                 ))
             }.into(),
-    
+
             FunctionObject {
                 name: "get_rain_probability".into(),
                 description: Some("Get the probability of rain for a specific location".into()),
@@ -122,7 +124,7 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()>{
         .role(MessageRole::User)
         .content(input.clone())
         .build()?;
-    
+
     //attach message to the thread
     let _message_obj = client
         .threads()
@@ -130,7 +132,6 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()>{
         .create(message)
         .await?;
 
-    
     // Step 3: Initiate a Run
 
     //create a run for the thread
@@ -138,7 +139,7 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()>{
         .assistant_id(assistant_id)
         .stream(true)
         .build()?;
-    
+
     let mut event_stream = client
         .threads()
         .runs(&thread.id)
@@ -156,7 +157,7 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()>{
     //     .await?;
 
     let mut task_handle = None;
-    
+
     while let Some(event) = event_stream.next().await {
         match event {
             Ok(event) => match event {
@@ -183,7 +184,7 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()>{
                 }
                 _ => {
                     // println!("\nEvent: {event:?}\n")
-                },
+                }
             },
             Err(e) => {
                 eprintln!("Error: {e}");
@@ -201,7 +202,10 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()>{
     println!("thread_id: {:?}", thread.id);
     client.assistants().delete(assistant_id).await?;
     client.threads().delete(&thread.id).await?;
-    client.threads().delete("thread_FUX4wgtpMMxpOQjN2wZ2lYhp").await?;
+    client
+        .threads()
+        .delete("thread_FUX4wgtpMMxpOQjN2wZ2lYhp")
+        .await?;
     Ok(())
 }
 

@@ -1,33 +1,32 @@
+use serde::Deserialize;
 use std::error::Error;
 use tauri::{CustomMenuItem, Menu, MenuItem, Submenu};
 use tauri::{Manager, Window, WindowUrl};
-use serde::Deserialize;
 
+use crate::API_KEY;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        AssistantStreamEvent, CreateAssistantRequestArgs, CreateMessageRequest, CreateRunRequest,
-        CreateThreadRequest, FunctionObject, MessageDeltaContent, MessageRole, RunObject,
+        AssistantStreamEvent, AssistantToolCodeInterpreterResources,
+        AssistantToolFileSearchResources, AssistantTools, AssistantToolsFileSearch,
+        CreateAssistantRequestArgs, CreateFileRequest, CreateMessageRequest,
+        CreateMessageRequestArgs, CreateRunRequest, CreateRunRequestArgs, CreateThreadRequest,
+        CreateThreadRequestArgs, CreateVectorStoreRequest, FilePurpose, FunctionObject,
+        MessageAttachment, MessageAttachmentTool, MessageContent, MessageContentTextAnnotations,
+        MessageDeltaContent, MessageRole, ModifyAssistantRequest, RunObject, RunStatus,
         SubmitToolOutputsRunRequest, ToolsOutputs,
-        CreateMessageRequestArgs, CreateRunRequestArgs,
-        CreateThreadRequestArgs,
-        AssistantToolFileSearchResources, AssistantToolsFileSearch, 
-        CreateFileRequest,
-        CreateVectorStoreRequest, FilePurpose, MessageAttachment, MessageAttachmentTool,
-        MessageContent,  ModifyAssistantRequest, RunStatus,
-        AssistantToolCodeInterpreterResources, AssistantTools, MessageContentTextAnnotations, 
     },
     Client,
 };
 use futures::StreamExt;
-use crate::API_KEY;
-
 
 #[tauri::command]
-pub async fn assistents_code_interpreter_test(awindow: Window,
+pub async fn assistents_code_interpreter_test(
+    awindow: Window,
     app_handle: tauri::AppHandle,
     params: String,
-    timeout_sec: Option<u64>,) -> Result<String, String> {
+    timeout_sec: Option<u64>,
+) -> Result<String, String> {
     #[derive(Deserialize)]
     struct PostData {
         message: Option<String>,
@@ -36,19 +35,20 @@ pub async fn assistents_code_interpreter_test(awindow: Window,
     }
     println!("call assistents_stream_test: {:#?}", params);
     let postData = serde_json::from_str::<PostData>(params.as_str()).unwrap();
-    match assistant_code_interpreter_example(postData.message.unwrap_or_default().as_str()).await.map_err(|e| format!("{:?}", e)) {
-        Ok(_) => {
-            Ok("テスト終了".to_string())
-        }
-        Err(err) => {
-            Err(err)
-        }
+    match assistant_code_interpreter_example(postData.message.unwrap_or_default().as_str())
+        .await
+        .map_err(|e| format!("{:?}", e))
+    {
+        Ok(_) => Ok("テスト終了".to_string()),
+        Err(err) => Err(err),
     }
 }
 
-async fn assistant_code_interpreter_example(question: &str) -> anyhow::Result<()>{
+async fn assistant_code_interpreter_example(question: &str) -> anyhow::Result<()> {
     //create a client
-    let client = Client::with_config(OpenAIConfig::new().with_api_key(API_KEY.read().map(|x| x.clone()).unwrap_or_default()));
+    let client = Client::with_config(
+        OpenAIConfig::new().with_api_key(API_KEY.read().map(|x| x.clone()).unwrap_or_default()),
+    );
 
     // Upload data file with "assistants" purpose
     let data_file = client
@@ -77,17 +77,16 @@ async fn assistant_code_interpreter_example(question: &str) -> anyhow::Result<()
         .name(&assistant_name)
         .instructions(&instructions)
         .model("gpt-4o-mini")
-        .tools(vec![
-            AssistantTools::CodeInterpreter
-        ])
-        .tool_resources(
-            AssistantToolCodeInterpreterResources { file_ids: vec![data_file.id.clone()] }
-        ).build()?;
+        .tools(vec![AssistantTools::CodeInterpreter])
+        .tool_resources(AssistantToolCodeInterpreterResources {
+            file_ids: vec![data_file.id.clone()],
+        })
+        .build()?;
     let assistant = client.assistants().create(assistant_request).await?;
     //get the id of the assistant
     let assistant_id = &assistant.id;
     println!("--- 2Enter the instruction set for your new assistant");
-    
+
     let create_message_request = CreateMessageRequestArgs::default()
         .role(MessageRole::User)
         .content("価格指数と年のグラフをpng形式で生成してください")
@@ -214,6 +213,6 @@ async fn assistant_code_interpreter_example(question: &str) -> anyhow::Result<()
         client.files().delete(&file_id).await?;
     }
     client.assistants().delete(&assistant.id).await?;
-    
+
     Ok(())
 }
