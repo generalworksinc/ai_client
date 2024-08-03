@@ -8,13 +8,12 @@ use std::fs::File;
 use std::io::prelude::*;
 use tauri::Window;
 
-use chrono::{TimeZone, Utc};
 
 use async_openai::{
     config::OpenAIConfig,
     types::{
         AssistantStreamEvent, CreateAssistantRequestArgs, CreateMessageRequestArgs,
-        CreateRunRequestArgs, CreateThreadRequestArgs, FunctionObject, MessageDeltaContent,
+        CreateRunRequestArgs, CreateThreadRequestArgs, MessageDeltaContent,
         MessageRole, RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
     },
     Client,
@@ -176,7 +175,7 @@ pub async fn make_new_thread(
         // &postData.assistant_name,
         window,
         postData.messages,
-        &postData.assistant_id.as_str(),
+        postData.assistant_id.as_str(),
         message_id.as_str(),
         postData.threadId.as_str(), // postData.instructions.unwrap_or_default().as_str(),
     )
@@ -210,7 +209,7 @@ async fn exec_make_new_thread(
 
     //create a thread for the conversation
     let mut new_thread = false;
-    let thread = if thread_id == "" {
+    let thread = if thread_id.is_empty() {
         new_thread = true;
         let thread_request = CreateThreadRequestArgs::default().build()?;
         client.threads().create(thread_request.clone()).await?
