@@ -252,11 +252,13 @@ async fn delete_message(app_handle: tauri::AppHandle, id: String) -> Result<Stri
         std::fs::remove_file(file_path_title).map_err(|x| x.to_string())?;
     }
     //Threadの場合、削除します
-    if id.starts_with("thread_") {
+    let (thread_id, _) = util::get_thread_and_assistant_id(id.as_str());
+    if !thread_id.is_empty() {
+        println!("thread_id: {:#?}", thread_id);
         let client = create_client().map_err(|err| err.to_string())?;
         match client
             .threads()
-            .delete(id.as_str())
+            .delete(thread_id.as_str())
             .await
             .map_err(|x| x.to_string())
         {
@@ -280,6 +282,7 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
         // data: String,
         id: Option<String>,
         thread_id: Option<String>,
+        assistant_id: Option<String>,
         save_thread: Option<bool>,
     }
     println!("params: {:#?}", params);
@@ -288,7 +291,11 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
     //threadの保存が不要な場合、削除する
     let thread_id = if let Some(thread_id) = post_data.thread_id.filter(|x| !x.is_empty()) {
         if post_data.save_thread == Some(true) {
-            thread_id
+            if let Some(assistant_id) = post_data.assistant_id.filter(|x| !x.is_empty()) {
+                thread_id + assistant_id.as_str()
+            } else {
+                thread_id
+            }
         } else {
             let client = create_client().map_err(|err| err.to_string())?;
             match client.threads().delete(&thread_id).await {

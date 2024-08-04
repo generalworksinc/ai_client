@@ -422,7 +422,7 @@ async fn exec_make_new_thread(
     // client.threads().delete(&thread.id).await?;
     client
         .threads()
-        .delete("thread_bLoskYkBNlDDlO8Ibm4TncLl")
+        .delete("thread_zEPWjc0Bu3oPTrCZoA6TqeNa")
         .await;
     // client
     //     .threads()

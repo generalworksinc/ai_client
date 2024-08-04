@@ -174,12 +174,38 @@ const refleshTitles = () => {
         // titles.values = 
     });
 };
+const getThreadAndAssistantId = (id) => {
+    // thread_xxxxxxassistant_yyyyyy -> (xxxxxx, yyyyyy)
+    console.log('getThreadAndAssistantId:', id);
+    if (id.startsWith("thread_")) {
+        const parts = id.split("thread_");
+        const tmpList = parts[1].split("asst_");
+        const threadId = tmpList[0];
+        const assistantId = tmpList[1];
+        return ["thread_" + threadId, "asst_" + assistantId];
+    } else {
+        return ["", ""]; // 空の文字列の配列を返す
+    }
+}
 const loadContent = (id) => {
     invoke('load_messages', { id }).then(async res => {
         console.log('load response.', res);
         console.log('data; ', JSON.parse(res));
         // const lastAssistanceMessage = { 'role': 'assistant', 'content': event.payload, 'content_html': now_messaging.value };
         all_messages.value = JSON.parse(res);
+
+        const [threadIdTmp, assistantIdTmp] = getThreadAndAssistantId(id);
+        console.log('threadId, assistantId:', threadIdTmp, assistantIdTmp);
+        if (threadIdTmp) {
+            threadId.value = threadIdTmp;
+            if (assistantIdTmp) {
+                console.log('assistantId is!.', assistantIdTmp);
+                assistant_id.value = assistantIdTmp;
+                chatType.value = "assistant";
+            } else {
+                console.log('assistantId is empty.');
+            }
+        }
     });
 }
 const searchResultListSorted = computed(() => {
@@ -223,6 +249,7 @@ const save_chat = (e, saveThread = false) => {
                 content: x.content,
             })),
             thread_id: threadId.value,
+            assistant_id: assistant_id.value,
             save_thread: saveThread,
         })
     }).then(async res => {
@@ -396,7 +423,7 @@ const TEMPLATES = [
                         <template v-if="!title.isEditing">
                             <div style="flex: glow; max-width: 400px;" @click="loadContent(title.id)">
                                 <span v-if="title.id.startsWith('thread_')"><img src="./assets/chatgpt.png"
-                                        class="logo chatgpt" style="width: 20px; height:20px;" />Th:</span>
+                                        style="width: 20px; height:20px;" />Th:</span>
                                 {{ title.name || '(タイトルなし)' }}
                             </div>
                             <div style="flex: 1">
@@ -423,6 +450,7 @@ const TEMPLATES = [
                     <label v-for="chatTypeObj in CHAT_TYPE_LIST" :key="'chat_type_' + chatTypeObj.id"><input
                             type="radio" v-model="chatType" :value="chatTypeObj.id" />{{ chatTypeObj.disp }}</label>
                 </div>
+                <div>chatType: {{ chatType }}</div>
                 <div> <button @click="save_chat">save</button>
                     <button v-if="threadId" @click="save_chat($event, true)">save thread</button>
                     <button @click="new_chat">new chat</button>
