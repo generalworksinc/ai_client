@@ -1,6 +1,6 @@
 [package]
 name = "ai_client"
-version = "0.0.9"
+version = "0.1.0"
 description = "A ChatGPT Client Tauri App"
 authors = ["yuna"]
 edition = "2021"
@@ -23,7 +23,7 @@ reqwest = { version = "0.11.24", features = [
 ] }
 anyhow = "1.0.79"
 futures = "0.3.30"
-markdown = "1.0.0-alpha.16"
+markdown = "1.0.0-alpha.18"
 toml = "0.8.10"
 uuid = "1.7.0"
 chrono = "0.4.33"
