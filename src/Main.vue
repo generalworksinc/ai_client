@@ -49,6 +49,10 @@ const searchResultList = ref([]);
 //audio
 const fileInputAudio = ref(null);
 const audioFile = ref(null);
+//image
+const imageUrl = ref("");
+const fileInputImage = ref(null);
+const imageFile = ref(null);
 
 let articleDom = null;
 
@@ -224,6 +228,39 @@ const titleListSorted = computed(() => {
     });
 });
 //methods
+//image
+const imageFilePick = async () => {
+    clearSelectedFile();
+    console.log('fileInput.value:', fileInputImage.value);
+    fileInputImage.value.click();
+};
+const imageFilePicked = async (event) => {
+    const files = event.target.files;
+    console.log('files:', files);
+    console.log('fileInputImage.value:', fileInputImage.value);
+    // readFile(files[0], true);
+    imageFile.value = files[0]
+};
+const readImageFile = async () => {
+    if (imageFile.value) {
+        return new Promise((resolve, reject) => {
+            const fileReader = new FileReader();
+            const fileName = imageFile.value.name;
+
+            fileReader.onload = () => {
+                const fileBody = fileReader.result;
+                resolve({ fileBody, fileName });
+            };
+            fileReader.onerror = (error) => {
+                reject(error);
+            };
+            fileReader.readAsDataURL(imageFile.value);
+        });
+    } else {
+        return null;
+    }
+};
+//audio
 const audioFilePick = async () => {
     clearSelectedFile();
     console.log('fileInput.value:', fileInputAudio.value);
@@ -257,7 +294,7 @@ const audioTranscribe = async () => {
                 clearSelectedFile();
             }).catch(err => {
                 console.error('error:', err);
-                now_messaging.value = `<p>${err}</p>`;
+                now_messaging.value = `<pre>${err}</pre>`;
             });
         });
         fileReader.readAsDataURL(audioFile.value)
@@ -266,6 +303,7 @@ const audioTranscribe = async () => {
 const clearSelectedFile = () => {
     // fileInputAudio.value = '';
     audioFile.value = null;
+    imageFile.value = null;
 };
 const changeContent = (title) => {
     invoke('change_message', { id: title.id, name: title.name }).then(async res => {
@@ -334,7 +372,7 @@ const translateToEn = () => {
     message.value = "translate to English below.\n" + message.value;
     sendMessageStream();
 }
-const sendMessageStream = () => {
+const sendMessageStream = async () => {
     console.log('sendMessageStream chat called.');
     const messageId = uuidv4();
     lastWaitingMessageId.value = messageId;
@@ -344,6 +382,8 @@ const sendMessageStream = () => {
         console.log('sendMessageStream chat called.');
         const userMessage = { 'role': send_role.value, 'content': message.value };
         all_messages.value.push(userMessage);
+
+        imageFile.value = "";
         now_messaging.value = "";
         message.value = '';
 
@@ -366,17 +406,27 @@ const sendMessageStream = () => {
 
         const userMessage = { 'role': send_role.value, 'content': message.value };
         all_messages.value.push(userMessage);
+
+        const data = {
+            messages: all_messages.value.slice(-1),
+            assistant_id: assistant_id.value,
+            messageId: messageId,
+            threadId: threadId.value,
+            imageUrl: imageUrl.value,
+        };
+        //画像がアップされてたら取得する
+        if (imageFile.value) {
+            const result = await readImageFile();
+            data["filename"] = result.fileName;
+            data["filebody"] = result.fileBody;
+        }
+
+        imageFile.value = "";
         now_messaging.value = "";
         message.value = '';
 
-
         invoke('make_new_thread', {
-            params: JSON.stringify({
-                messages: all_messages.value.slice(-1),
-                assistant_id: assistant_id.value,
-                messageId: messageId,
-                threadId: threadId.value,
-            }),
+            params: JSON.stringify(data),
             // timeoutSec: timeoutSec.value,
         }).then(async res => {
             console.log('send_message_and_callback_stream response.', res);
@@ -542,6 +592,10 @@ const TEMPLATES = [
                             </select>
                         </h3>
                         <div>thread: {{ threadId }}</div>
+                        <div>画像URL:<input type="text" style="width: 100%;" v-model="imageUrl" /></div>
+                        <button @click="imageFilePick" style="padding: 5 px; margin-left: 5px;">画像ファイルUP</button>
+                        <input type="file" style="display: none" ref="fileInputImage" @change="imageFilePicked" />
+                        <div v-if="imageFile">{{ imageFile.name }}</div>
                     </div>
                 </div>
                 <div v-else-if="chatType === 'audio'">
