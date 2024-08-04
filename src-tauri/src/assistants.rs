@@ -225,8 +225,6 @@ async fn exec_make_new_thread(
         }
     };
 
-    // println!("--- How can I help you?");
-
     //create a message for the thread
     let content_list = if new_thread {
         messages.iter().map(|x| x.content.clone()).collect()
@@ -422,11 +420,15 @@ async fn exec_make_new_thread(
     // println!("assistant_id: {:?}", assistant_id);
     // println!("thread_id: {:?}", thread.id);
     // client.assistants().delete(assistant_id).await?;
-    client.threads().delete(&thread.id).await?;
+    // client.threads().delete(&thread.id).await?;
     client
         .threads()
-        .delete("thread_ERCDZTQlmun3B1pcnesCmt3t")
-        .await?;
+        .delete("thread_bLoskYkBNlDDlO8Ibm4TncLl")
+        .await;
+    // client
+    //     .threads()
+    //     .delete("thread_w1u1EKk34jDqXJBeJj6wQ2Ye")
+    //     .await?;    
     println!("thread_id: {:?}", thread.id);
     Ok(())
 }

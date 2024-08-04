@@ -27,6 +27,7 @@ use tauri::Window;
 use tauri::{CustomMenuItem, Menu, Submenu};
 // use futures_util::stream::StreamExt;
 use rand::prelude::*;
+use util::create_client;
 
 use chrono::{TimeZone, Utc};
 use once_cell::sync::OnceCell;
@@ -45,7 +46,7 @@ const DIR_ASSISTANTS: &str = "assistants";
 
 pub static PATH_DIR_CHATGPT_CONFIG: OnceCell<PathBuf> = OnceCell::new();
 
-pub fn create_client() -> reqwest::Client {
+pub fn create_reqwest_client() -> reqwest::Client {
     // certificate使ってサーバからデータ取得する
     let mut headers = header::HeaderMap::new();
     headers.insert(
@@ -250,6 +251,22 @@ async fn delete_message(app_handle: tauri::AppHandle, id: String) -> Result<Stri
         //削除
         std::fs::remove_file(file_path_title).map_err(|x| x.to_string())?;
     }
+    //Threadの場合、削除します
+    if id.starts_with("thread_") {
+        let client = create_client().map_err(|err| err.to_string())?;
+        match client
+        .threads()
+        .delete(id.as_str())
+        .await.map_err(|x| x.to_string()) {
+            Ok(_) => {
+                println!("thread delete success");
+            }
+            Err(err) => {
+                eprintln!("thread delete error: {:#?}", err);
+            }
+        }
+    }
+    
     Ok("削除しました".to_string())
 }
 
@@ -260,17 +277,45 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
         data: Vec<ChatApiMessage>,
         // data: String,
         id: Option<String>,
+        thread_id: Option<String>,
+        save_thread: Option<bool>,
     }
     println!("params: {:#?}", params);
-    let postData = serde_json::from_str::<PostData>(params.as_str()).unwrap();
-    // let messages = serde_json::from_str::<Vec<ChatApiMessage>>(postData.data.as_str()).unwrap();
+    let post_data = serde_json::from_str::<PostData>(params.as_str()).unwrap();
+    
 
+    //threadの保存が不要な場合、削除する
+    let thread_id = if let Some(thread_id) = post_data.thread_id.filter(|x| !x.is_empty()) {
+        if post_data.save_thread == Some(true){
+            thread_id
+        } else {
+            let client = create_client().map_err(|err| err.to_string())?;
+            match client
+            .threads()
+            .delete(&thread_id)
+            .await {
+                Ok(_) => {
+                    println!("thread delete success");
+                }
+                Err(err) => {
+                    eprintln!("thread delete error: {:#?}", err);
+                }
+            }
+            "".to_string()
+        }
+    } else {
+        "".to_string()
+    };
+    
     // write_message into file.
-    let id = if let Some(id) = postData.id {
+    let id = if !thread_id.is_empty() {
+        thread_id
+    } else if let Some(id) = post_data.id {
         id
     } else {
         uuid::Uuid::new_v4().to_string()
     };
+
     // write_id and conversasion.
     let dir = unsafe { SAVING_DIRECTORY.clone() };
     let content_dir_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION);
@@ -282,7 +327,7 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
     }
     let file_path = content_dir_path.join(id.clone());
     let mut f = File::create(file_path).unwrap();
-    f.write_all(serde_json::to_string(&postData.data).unwrap().as_bytes())
+    f.write_all(serde_json::to_string(&post_data.data).unwrap().as_bytes())
         .unwrap();
 
     // write_id and title.
@@ -296,7 +341,7 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
 
     //make file title
     let mut title_content = "".to_string();
-    for message in postData.data {
+    for message in post_data.data {
         println!("message: {:#?}", message);
         if message.role == "user" {
             title_content += message.content.as_str();
@@ -433,8 +478,8 @@ fn refresh_index_db() -> anyhow::Result<()> {
 }
 //set title by chatGPT
 async fn get_title(sentense: String) -> anyhow::Result<String> {
-    let data = ChatApiSendMessage {
-        model: "gpt-3.5-turbo".into(),
+    let data: ChatApiSendMessage = ChatApiSendMessage {
+        model: "gpt-4o-mini".into(),
         max_tokens: 1024,
         temperature: 0.5f32,
         messages: vec![ChatApiMessage {
@@ -444,7 +489,7 @@ async fn get_title(sentense: String) -> anyhow::Result<String> {
         stream: false,
     };
 
-    let response = create_client()
+    let response = create_reqwest_client()
         .post(format!("{}/completions", "https://api.openai.com/v1/chat",).to_string())
         .json(&data)
         .timeout(Duration::from_secs(45))
@@ -584,7 +629,7 @@ async fn send_message_and_callback_stream(
 
     // 非同期タスクとしてレスポンスの受信・処理を実行
 
-    let response = create_client()
+    let response = create_reqwest_client()
         .post(format!("{}/completions", "https://api.openai.com/v1/chat",).to_string())
         .json(&data)
         .timeout(Duration::from_secs(timeout_sec.unwrap_or(45)))

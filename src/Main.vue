@@ -212,12 +212,18 @@ const add_template = () => {
 const new_chat = () => {
     window.location.reload();
 };
-const save_chat = () => {
+const save_chat = (e, saveThread = false) => {
 
     //save model and chat data.
+    console.log('saveThread: ', saveThread);
     invoke('save_chat', {
         params: JSON.stringify({
-            data: all_messages.value.map(x => ({ role: x.role, content: x.content })),
+            data: all_messages.value.map(x => ({
+                role: x.role,
+                content: x.content,
+            })),
+            thread_id: threadId.value,
+            save_thread: saveThread,
         })
     }).then(async res => {
         clear_search();
@@ -388,8 +394,11 @@ const TEMPLATES = [
                     <div v-for="title in titleListSorted" :key="'title_id_' + title.id"
                         style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         <template v-if="!title.isEditing">
-                            <div style="flex: glow; max-width: 400px;" @click="loadContent(title.id)">{{ title.name ||
-                                '(タイトルなし)' }}</div>
+                            <div style="flex: glow; max-width: 400px;" @click="loadContent(title.id)">
+                                <span v-if="title.id.startsWith('thread_')"><img src="./assets/chatgpt.png"
+                                        class="logo chatgpt" style="width: 20px; height:20px;" />Th:</span>
+                                {{ title.name || '(タイトルなし)' }}
+                            </div>
                             <div style="flex: 1">
                                 <button @click="deleteContent(title.id)" class="button-sm">削</button>
                                 <button @click="() => title.isEditing = true" class="button-sm">変</button>
@@ -414,7 +423,10 @@ const TEMPLATES = [
                     <label v-for="chatTypeObj in CHAT_TYPE_LIST" :key="'chat_type_' + chatTypeObj.id"><input
                             type="radio" v-model="chatType" :value="chatTypeObj.id" />{{ chatTypeObj.disp }}</label>
                 </div>
-                <div>{{ JSON.stringify(chatType) }}</div>
+                <div> <button @click="save_chat">save</button>
+                    <button v-if="threadId" @click="save_chat($event, true)">save thread</button>
+                    <button @click="new_chat">new chat</button>
+                </div>
                 <div v-if="chatType === 'chat'">
                     <div style="display: flex; justify-content: space-between;">
                         <h3>Model:
@@ -423,8 +435,6 @@ const TEMPLATES = [
                                     {{ value }}</option>
                             </select>
                         </h3>
-                        <button @click="save_chat">save</button>
-                        <button @click="new_chat">new chat</button>
                     </div>
 
                     <div>click "send" or ctrl + enter to send message.<label v-for="role in ROLES"
