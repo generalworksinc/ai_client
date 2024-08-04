@@ -1,22 +1,12 @@
 use crate::util;
 use base64::prelude::*;
-use base64::{
-    engine::general_purpose::{STANDARD, URL_SAFE},
-    Engine as _,
-};
-use serde::Deserialize;
+use base64::Engine as _;
 use serde_json::json;
 use tauri::Window;
 
-use crate::API_KEY;
-use async_openai::{
-    config::OpenAIConfig,
-    types::{
+use async_openai::types::{
         AudioInput, AudioResponseFormat, CreateTranscriptionRequestArgs, TimestampGranularity,
-    },
-    Client,
-};
-use futures::StreamExt;
+    };
 
 #[tauri::command]
 pub async fn audio_transcribe(
@@ -50,10 +40,10 @@ async fn transcribe_verbose_json(
     file_name: &str,
     file_body: &str,
 ) -> Result<serde_json::Value, anyhow::Error> {
-    let mut file_binary: Vec<u8>;
+    let file_binary: Vec<u8>;
     // let stan = base64::engine::general_purpose::STANDARD;
 
-    if let Some((file_type, file_body)) = file_body.clone().split_once("base64,") {
+    if let Some((file_type, file_body)) = file_body.split_once("base64,") {
         file_binary = BASE64_STANDARD.decode(file_body)?;
     } else {
         return Err(anyhow::anyhow!("Invalid file format"));
