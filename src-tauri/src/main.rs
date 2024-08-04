@@ -255,9 +255,11 @@ async fn delete_message(app_handle: tauri::AppHandle, id: String) -> Result<Stri
     if id.starts_with("thread_") {
         let client = create_client().map_err(|err| err.to_string())?;
         match client
-        .threads()
-        .delete(id.as_str())
-        .await.map_err(|x| x.to_string()) {
+            .threads()
+            .delete(id.as_str())
+            .await
+            .map_err(|x| x.to_string())
+        {
             Ok(_) => {
                 println!("thread delete success");
             }
@@ -266,7 +268,7 @@ async fn delete_message(app_handle: tauri::AppHandle, id: String) -> Result<Stri
             }
         }
     }
-    
+
     Ok("削除しました".to_string())
 }
 
@@ -282,18 +284,14 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
     }
     println!("params: {:#?}", params);
     let post_data = serde_json::from_str::<PostData>(params.as_str()).unwrap();
-    
 
     //threadの保存が不要な場合、削除する
     let thread_id = if let Some(thread_id) = post_data.thread_id.filter(|x| !x.is_empty()) {
-        if post_data.save_thread == Some(true){
+        if post_data.save_thread == Some(true) {
             thread_id
         } else {
             let client = create_client().map_err(|err| err.to_string())?;
-            match client
-            .threads()
-            .delete(&thread_id)
-            .await {
+            match client.threads().delete(&thread_id).await {
                 Ok(_) => {
                     println!("thread delete success");
                 }
@@ -306,7 +304,7 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
     } else {
         "".to_string()
     };
-    
+
     // write_message into file.
     let id = if !thread_id.is_empty() {
         thread_id

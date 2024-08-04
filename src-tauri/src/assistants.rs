@@ -8,13 +8,12 @@ use std::fs::File;
 use std::io::prelude::*;
 use tauri::Window;
 
-
 use async_openai::{
     config::OpenAIConfig,
     types::{
         AssistantStreamEvent, CreateAssistantRequestArgs, CreateMessageRequestArgs,
-        CreateRunRequestArgs, CreateThreadRequestArgs, MessageDeltaContent,
-        MessageRole, RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
+        CreateRunRequestArgs, CreateThreadRequestArgs, MessageDeltaContent, MessageRole, RunObject,
+        SubmitToolOutputsRunRequest, ToolsOutputs,
     },
     Client,
 };
@@ -428,7 +427,7 @@ async fn exec_make_new_thread(
     // client
     //     .threads()
     //     .delete("thread_w1u1EKk34jDqXJBeJj6wQ2Ye")
-    //     .await?;    
+    //     .await?;
     println!("thread_id: {:?}", thread.id);
     Ok(())
 }
