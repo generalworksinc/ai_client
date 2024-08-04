@@ -1,0 +1,7 @@
+・画像アップ/image urlアップ後のthreadに、追加質問するとエラーになる問題の対応
+・threadを保存しなくても削除できるようにする
+　（threadを作成したタイミングで、threadフォルダにファイル保存する）→あとで削除できるように
+
+・PDFファイルを読み込んで、それを元に質問に回答できるAssistantを生成できるようにする
+
+・legacy Completionを、Chat Completionsに書き換え
