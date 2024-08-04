@@ -8,12 +8,13 @@ import { useRouter } from 'vue-router';
 import { ref, nextTick, onMounted, onUnmounted, computed } from "vue";
 import { Multipane, MultipaneResizer } from './lib/multipane';
 import { v4 as uuidv4 } from 'uuid';
-import { AI_MODELS } from './constants';
+import { AI_MODELS, AUDIO_MODELS } from './constants';
 
 
 const CHAT_TYPE_LIST = [
     { id: "chat", disp: "Chat" },
     { id: "assistant", disp: "Assistant" },
+    { id: "audio", disp: "Audio" },
 ]
 
 const router = useRouter();
@@ -33,6 +34,7 @@ const send_role = ref("user");
 const tempareture = ref(0.9);
 const template = ref("");
 const ai_name = ref("gpt-4o-mini");
+const audio_model = ref("whisper-1");
 const assistant_id = ref("");
 
 const search_word = ref("");
@@ -44,6 +46,9 @@ const titleList = ref([]);
 const assistantList = ref([]);
 const searchResultList = ref([]);
 
+//audio
+const fileInputAudio = ref(null);
+const audioFile = ref(null);
 
 let articleDom = null;
 
@@ -219,6 +224,49 @@ const titleListSorted = computed(() => {
     });
 });
 //methods
+const audioFilePick = async () => {
+    clearSelectedFile();
+    console.log('fileInput.value:', fileInputAudio.value);
+    fileInputAudio.value.click();
+};
+const audioFilePicked = async (event) => {
+    const files = event.target.files;
+    console.log('files:', files);
+    console.log('fileInputAudio.value:', fileInputAudio.value);
+    // readFile(files[0], true);
+    audioFile.value = files[0]
+};
+const audioTranscribe = async () => {
+    //TODO メモリを有効に使うために、本当はここでバイナリ読み込むのではなく、Rust側で処理を行いたい（ブラウザのメモリ使用量を抑えるため）
+    //ファイルを読み込んで、invokeする
+    if (audioFile.value) {
+        const fileReader = new FileReader();
+        const fileName = audioFile.value.name;
+        fileReader.addEventListener('load', () => {
+            const fileBody = fileReader.result;
+            invoke('audio_transcribe', { filebody: fileBody, filename: fileName }).then(async res => {
+                console.log('res:', res);
+                const response = JSON.parse(res);
+                console.log('response:', response);
+
+                const lastAssistanceMessage = { 'role': 'assistant', 'content': response.text, 'content_html': response.text };
+                all_messages.value.push(lastAssistanceMessage);
+                now_messaging.value = "";
+                now_messaging_raw = "";
+                lastWaitingMessageId.value = "";
+                clearSelectedFile();
+            }).catch(err => {
+                console.error('error:', err);
+                now_messaging.value = `<p>${err}</p>`;
+            });
+        });
+        fileReader.readAsDataURL(audioFile.value)
+    }
+};
+const clearSelectedFile = () => {
+    // fileInputAudio.value = '';
+    audioFile.value = null;
+};
 const changeContent = (title) => {
     invoke('change_message', { id: title.id, name: title.name }).then(async res => {
         title.isEditing = false;
@@ -495,6 +543,18 @@ const TEMPLATES = [
                         </h3>
                         <div>thread: {{ threadId }}</div>
                     </div>
+                </div>
+                <div v-else-if="chatType === 'audio'">
+                    <h3>Model:
+                        <select style="font-size: 2rem;" v-model="audio_model">
+                            <option v-for="value in AUDIO_MODELS" :value="value" :key="'whisper_name_' + value">
+                                {{ value }}</option>
+                        </select>
+                    </h3>
+                    <button @click="audioFilePick" style="padding: 5 px; margin-left: 5px;">オーディオファイル読込</button>
+                    <input type="file" style="display: none" ref="fileInputAudio" @change="audioFilePicked" />
+                    <button @click="audioTranscribe">Audio Transcribe</button>
+                    <div v-if="audioFile">{{ audioFile.name }}</div>
                 </div>
                 <div style="display: flex; align-items: flex-end;">
                     <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"

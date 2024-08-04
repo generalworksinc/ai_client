@@ -11,6 +11,7 @@ mod assistants_file_search;
 mod assistants_stream;
 mod assistants_tool_calls;
 mod assistants_vision_chat;
+mod audio;
 mod embedding;
 mod models;
 mod util;
@@ -846,6 +847,7 @@ fn main() {
             assistants_audio_speech::assistants_audio_speech_test,
             assistants_vision_chat::assistants_vision_chat_test,
             assistants_tool_calls::assistants_tool_calls_test,
+            audio::audio_transcribe,
             embedding::embedding_test,
         ])
         .setup(|app| {
