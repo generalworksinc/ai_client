@@ -5,8 +5,8 @@ use serde_json::json;
 use tauri::Window;
 
 use async_openai::types::{
-        AudioInput, AudioResponseFormat, CreateTranscriptionRequestArgs, TimestampGranularity,
-    };
+    AudioInput, AudioResponseFormat, CreateTranscriptionRequestArgs, TimestampGranularity,
+};
 
 #[tauri::command]
 pub async fn audio_transcribe(

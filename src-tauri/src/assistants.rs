@@ -1,21 +1,22 @@
 use crate::models::chat::ChatApiMessage;
 use crate::util::{self, create_client};
 use crate::{DIR_ASSISTANTS, SAVING_DIRECTORY};
+use base64::prelude::*;
 use futures::StreamExt;
 use serde::Deserialize;
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
-use base64::prelude::*;
 use tauri::Window;
-
 
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        self, ImageUrl, ImageInput, ImageFile, FileInput, AssistantStreamEvent, CreateAssistantRequestArgs, CreateMessageRequestArgs,MessageContentInput,MessageRequestContentTextObject,CreateMessageRequestContent,
-        CreateRunRequestArgs, CreateThreadRequestArgs, MessageDeltaContent, MessageRole, RunObject,
-        SubmitToolOutputsRunRequest, ToolsOutputs,CreateFileRequestArgs,CreateImageRequestArgs,
+        self, AssistantStreamEvent, CreateAssistantRequestArgs, CreateFileRequestArgs,
+        CreateImageRequestArgs, CreateMessageRequestArgs, CreateMessageRequestContent,
+        CreateRunRequestArgs, CreateThreadRequestArgs, FileInput, ImageFile, ImageInput, ImageUrl,
+        MessageContentInput, MessageDeltaContent, MessageRequestContentTextObject, MessageRole,
+        RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
     },
     Client,
 };
@@ -185,7 +186,6 @@ pub async fn make_new_thread(
         postData.imageUrl.unwrap_or_default().as_str(),
         postData.filename.unwrap_or_default().as_str(),
         postData.filebody.unwrap_or_default().as_str(),
-
     )
     .await
     .map_err(|e| format!("{:?}", e))
@@ -244,34 +244,36 @@ async fn exec_make_new_thread(
     };
     // ContentArray(Vec<MessageContentInput>),
 
-
     // pub enum MessageContentInput {
     //     Text(MessageRequestContentTextObject),
     //     ImageFile(MessageContentImageFileObject),
     //     ImageUrl(MessageContentImageUrlObject),
     // }
 
-
     let mut image_file_id = "".to_string();
     for content in content_list.iter() {
         // MessageContentInput(content)
         // let content_text = types::Args::default().text(content.clone()).build()?;
         if !image_url.is_empty() {
-            let image_url_build = types::ImageUrlArgs::default().url(image_url.to_string()).build()?;
-            let image_url = MessageContentInput::ImageUrl(types::MessageContentImageUrlObject{image_url: image_url_build});
-            
+            let image_url_build = types::ImageUrlArgs::default()
+                .url(image_url.to_string())
+                .build()?;
+            let image_url = MessageContentInput::ImageUrl(types::MessageContentImageUrlObject {
+                image_url: image_url_build,
+            });
+
             let content_vec: Vec<MessageContentInput> = vec![image_url];
             let image_url_message = CreateMessageRequestArgs::default()
-            .role(MessageRole::User)
-            .content(CreateMessageRequestContent::ContentArray(content_vec))
-            .build()?;
+                .role(MessageRole::User)
+                .content(CreateMessageRequestContent::ContentArray(content_vec))
+                .build()?;
             let _message_obj_url = client
                 .threads()
                 .messages(&thread.id)
                 .create(image_url_message)
                 .await?;
         }
-        if  !file_body.is_empty() {
+        if !file_body.is_empty() {
             let file_binary: Vec<u8>;
             //////////////////////////////////////////////////////////////////////////////////////////
             if let Some((file_type, file_body)) = file_body.split_once("base64,") {
@@ -280,11 +282,13 @@ async fn exec_make_new_thread(
                 return Err(anyhow::anyhow!("Invalid file format"));
             }
             println!("file_binary len: {:?}", file_binary.len());
-        
+
             let bytes = bytes::Bytes::from(file_binary);
             let image_input = FileInput::from_bytes(file_name.to_string(), bytes);
-            
-            let create_file_request = types::CreateFileRequestArgs::default().file(image_input).build()?;
+
+            let create_file_request = types::CreateFileRequestArgs::default()
+                .file(image_input)
+                .build()?;
             let create_file = client.files().create(create_file_request).await?;
             image_file_id = create_file.id.to_string();
 
@@ -292,20 +296,25 @@ async fn exec_make_new_thread(
             // let imageInput: ImageInput = ImageInput::from_bytes(file_name.to_string(), bytes);
             // let create_request_args = CreateImageRequestArgs::default().(image_input).build()?;
             // let input_image_file = client.images().create(create_request_args).await?;
-            let image_file = MessageContentInput::ImageFile(types::MessageContentImageFileObject{image_file: ImageFile{file_id: image_file_id.clone(), detail: None}});
-            
+            let image_file = MessageContentInput::ImageFile(types::MessageContentImageFileObject {
+                image_file: ImageFile {
+                    file_id: image_file_id.clone(),
+                    detail: None,
+                },
+            });
+
             let content_vec: Vec<MessageContentInput> = vec![image_file];
             let image_file_message = CreateMessageRequestArgs::default()
-            .role(MessageRole::User)
-            .content(CreateMessageRequestContent::ContentArray(content_vec))
-            .build()?;
+                .role(MessageRole::User)
+                .content(CreateMessageRequestContent::ContentArray(content_vec))
+                .build()?;
             let _message_obj_file = client
                 .threads()
                 .messages(&thread.id)
                 .create(image_file_message)
                 .await?;
         }
-        
+
         let message = CreateMessageRequestArgs::default()
             .role(MessageRole::User)
             .content(content.clone())
@@ -499,7 +508,7 @@ async fn exec_make_new_thread(
         .threads()
         .delete("thread_zEPWjc0Bu3oPTrCZoA6TqeNa")
         .await;
-    
+
     if !image_file_id.is_empty() {
         client.files().delete(image_file_id.as_str()).await?;
     }
