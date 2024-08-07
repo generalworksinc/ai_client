@@ -631,6 +631,14 @@ const TEMPLATES = [
                             </select>
                         </div>
                     </div>
+                    <div>
+                        <div>画像URL:<input type="text" style="width: 100%;" v-model="imageUrl" /></div>
+                        <button @click="imageFileChatPick" style="padding: 5 px; margin-left: 5px;">画像ファイルUP</button>
+                        <input type="file" style="display: none" ref="fileInputImageChat"
+                            @change="imageFileChatPicked" />
+                        <div v-if="imageFileChat">{{ imageFileChat.name }}</div>
+
+                    </div>
                 </div>
                 <div v-else-if="chatType === 'assistant'">
                     <div style="display: flex; justify-content: space-between;">
@@ -661,12 +669,6 @@ const TEMPLATES = [
                     <div v-if="audioFile">{{ audioFile.name }}</div>
                 </div>
                 <div style="display: flex; align-items: flex-end;">
-
-                    <div>画像URL:<input type="text" style="width: 100%;" v-model="imageUrl" /></div>
-                    <button @click="imageFileChatPick" style="padding: 5 px; margin-left: 5px;">画像ファイルUP</button>
-                    <input type="file" style="display: none" ref="fileInputImageChat" @change="imageFileChatPicked" />
-                    <div v-if="imageFileChat">{{ imageFileChat.name }}</div>
-
                     <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
                         style="height: 3rem; width: 80%;"></textarea>
                     <!-- <button @click="sendMessage">send</button> -->
