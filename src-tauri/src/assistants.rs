@@ -503,11 +503,11 @@ async fn exec_make_new_thread(
     // println!("assistant_id: {:?}", assistant_id);
     // println!("thread_id: {:?}", thread.id);
     // client.assistants().delete(assistant_id).await?;
-    // client.threads().delete(&thread.id).await?;
-    client
-        .threads()
-        .delete("thread_zEPWjc0Bu3oPTrCZoA6TqeNa")
-        .await;
+    // // client.threads().delete(&thread.id).await?;
+    // client
+    //     .threads()
+    //     .delete("thread_zEPWjc0Bu3oPTrCZoA6TqeNa")
+    //     .await;
 
     if !image_file_id.is_empty() {
         client.files().delete(image_file_id.as_str()).await?;

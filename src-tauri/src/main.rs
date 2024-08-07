@@ -15,6 +15,7 @@ mod audio;
 mod embedding;
 mod models;
 mod util;
+mod chat_completion;
 
 use futures::future;
 use futures::stream::StreamExt;
@@ -629,7 +630,7 @@ async fn send_message_and_callback_stream(
     //     rt.block_on(async {
 
     let mut response_string = String::new();
-    let start_time = chrono::Utc::now();
+    // let start_time = chrono::Utc::now();
     let mut prev_time = chrono::Utc::now();
     let messageId = postData.messageId.clone();
 
@@ -849,6 +850,7 @@ fn main() {
             assistants_tool_calls::assistants_tool_calls_test,
             audio::audio_transcribe,
             embedding::embedding_test,
+            chat_completion::start_chat,
         ])
         .setup(|app| {
             init_config(app).expect("config init error");

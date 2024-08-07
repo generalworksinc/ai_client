@@ -52,7 +52,9 @@ const audioFile = ref(null);
 //image
 const imageUrl = ref("");
 const fileInputImage = ref(null);
+const fileInputImageChat = ref(null);
 const imageFile = ref(null);
+const imageFileChat = ref(null);
 
 let articleDom = null;
 
@@ -241,6 +243,37 @@ const imageFilePicked = async (event) => {
     // readFile(files[0], true);
     imageFile.value = files[0]
 };
+const imageFileChatPick = async () => {
+    clearSelectedFile();
+    console.log('fileInput.value:', fileInputImageChat.value);
+    fileInputImageChat.value.click();
+};
+const imageFileChatPicked = async (event) => {
+    const files = event.target.files;
+    console.log('files:', files);
+    console.log('fileInputImage.value:', fileInputImageChat.value);
+    // readFile(files[0], true);
+    imageFileChat.value = files[0]
+};
+const readImageFileChat = async () => {
+    if (imageFileChat.value) {
+        return new Promise((resolve, reject) => {
+            const fileReader = new FileReader();
+            const fileName = imageFileChat.value.name;
+
+            fileReader.onload = () => {
+                const fileBody = fileReader.result;
+                resolve({ fileBody, fileName });
+            };
+            fileReader.onerror = (error) => {
+                reject(error);
+            };
+            fileReader.readAsDataURL(imageFileChat.value);
+        });
+    } else {
+        return null;
+    }
+};
 const readImageFile = async () => {
     if (imageFile.value) {
         return new Promise((resolve, reject) => {
@@ -304,6 +337,7 @@ const clearSelectedFile = () => {
     // fileInputAudio.value = '';
     audioFile.value = null;
     imageFile.value = null;
+    imageFileChat.value = null;
 };
 const changeContent = (title) => {
     invoke('change_message', { id: title.id, name: title.name }).then(async res => {
@@ -387,14 +421,30 @@ const sendMessageStream = async () => {
         now_messaging.value = "";
         message.value = '';
 
-        invoke('send_message_and_callback_stream', {
-            params: JSON.stringify({
-                messages: all_messages.value,
-                model: ai_name.value,
-                temperature: 0.9,
-                max_tokens: 2048,
-                messageId: messageId,
-            }),
+
+        // invoke('send_message_and_callback_stream', {
+        const data = {
+            messages: all_messages.value,
+            model: ai_name.value,
+            temperature: 0.9,
+            max_tokens: 2048,
+            messageId: messageId,
+            imageUrl: imageUrl.value,
+        };
+        //画像がアップされてたら取得する
+        if (imageFileChat.value) {
+            const result = await readImageFileChat();
+            console.log('result:', result);
+            data["filename"] = result.fileName;
+            data["filebody"] = result.fileBody;
+        }
+
+        imageFile.value = "";
+        imageFileChat.value = "";
+        now_messaging.value = "";
+        message.value = '';
+        invoke('start_chat', {
+            params: JSON.stringify(data),
             timeoutSec: timeoutSec.value,
         }).then(async res => {
             console.log('send_message_and_callback_stream response.', res);
@@ -611,6 +661,12 @@ const TEMPLATES = [
                     <div v-if="audioFile">{{ audioFile.name }}</div>
                 </div>
                 <div style="display: flex; align-items: flex-end;">
+
+                    <div>画像URL:<input type="text" style="width: 100%;" v-model="imageUrl" /></div>
+                    <button @click="imageFileChatPick" style="padding: 5 px; margin-left: 5px;">画像ファイルUP</button>
+                    <input type="file" style="display: none" ref="fileInputImageChat" @change="imageFileChatPicked" />
+                    <div v-if="imageFileChat">{{ imageFileChat.name }}</div>
+
                     <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
                         style="height: 3rem; width: 80%;"></textarea>
                     <!-- <button @click="sendMessage">send</button> -->
