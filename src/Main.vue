@@ -48,7 +48,7 @@ const errorMsg = ref("");
 const lastWaitingMessageId = ref("");
 const timeoutSec = ref(180);
 
-const titleList = ref([]);
+const conversationList = ref([]);
 const threadList = ref([]);
 const assistantList = ref([]);
 const searchResultList = ref([]);
@@ -182,13 +182,13 @@ onMounted(async () => {
         }
     });
     refleshAssistants();
-    refleshTitles();
+    refleshConversations();
 });
-const refleshTitles = () => {
+const refleshConversations = () => {
 
     invoke('reflesh_titles').then(async res => {
         console.log('response.', res);
-        titleList.value = JSON.parse(res);
+        conversationList.value = JSON.parse(res);
         // titles.values = 
     });
 
@@ -198,19 +198,22 @@ const refleshTitles = () => {
         // titles.values = 
     });
 };
-const getThreadAndAssistantId = (id) => {
-    // thread_xxxxxxassistant_yyyyyy -> (xxxxxx, yyyyyy)
-    console.log('getThreadAndAssistantId:', id);
-    if (id.startsWith("thread_")) {
-        const parts = id.split("thread_");
-        const tmpList = parts[1].split("asst_");
-        const threadId = tmpList[0];
-        const assistantId = tmpList[1];
-        return ["thread_" + threadId, "asst_" + assistantId];
-    } else {
-        return ["", ""]; // 空の文字列の配列を返す
-    }
+const isThread = (id) => {
+    return id.startsWith("thread_");
 }
+// const getThreadAndAssistantId = (id) => {
+//     // thread_xxxxxxassistant_yyyyyy -> (xxxxxx, yyyyyy)
+//     console.log('getThreadAndAssistantId:', id);
+//     if (id.startsWith("thread_")) {
+//         const parts = id.split("thread_");
+//         const tmpList = parts[1].split("asst_");
+//         const threadId = tmpList[0];
+//         const assistantId = tmpList[1];
+//         return ["thread_" + threadId, "asst_" + assistantId];
+//     } else {
+//         return ["", ""]; // 空の文字列の配列を返す
+//     }
+// }
 const loadThread = (id) => {
     console.log('loadThread called.', id);
 }
@@ -219,22 +222,22 @@ const loadContent = (id) => {
         console.log('load response.', res);
         console.log('data; ', JSON.parse(res));
         // const lastAssistanceMessage = { 'role': 'assistant', 'content': event.payload, 'content_html': now_messaging.value };
-        all_messages.value = JSON.parse(res);
+        const conversation = JSON.parse(res);
+        all_messages.value = conversation.messages;
 
-        const [threadIdTmp, assistantIdTmp] = getThreadAndAssistantId(id);
-        console.log('threadId, assistantId:', threadIdTmp, assistantIdTmp);
-        if (threadIdTmp) {
-            threadId.value = threadIdTmp;
-            if (assistantIdTmp) {
-                console.log('assistantId is!.', assistantIdTmp);
-                assistant_id.value = assistantIdTmp;
+        if (isThread(id)) {
+            threadId.value = id;
+            if (conversation.assistant_id) {
+                console.log('assistantId is!.', conversation.assistant_id);
+                assistant_id.value = conversation.assistant_id;
                 chatType.value = "assistant";
             } else {
                 console.log('assistantId is empty.');
             }
         }
     });
-}
+};
+
 const threadListSorted = computed(() => {
     return threadList.value.sort((a, b) => {
         return a.time === b.time ? 0 : a.time < b.time ? 1 : -1;
@@ -245,8 +248,8 @@ const searchResultListSorted = computed(() => {
         return a.time === b.time ? 0 : a.time < b.time ? 1 : -1;
     });
 });
-const titleListSorted = computed(() => {
-    return titleList.value.sort((a, b) => {
+const conversationListSorted = computed(() => {
+    return conversationList.value.sort((a, b) => {
         return a.time === b.time ? 0 : a.time < b.time ? 1 : -1;
     });
 });
@@ -360,10 +363,10 @@ const clearSelectedFile = () => {
     imageFile.value = null;
     imageFileChat.value = null;
 };
-const changeContent = (title) => {
-    invoke('change_message', { id: title.id, name: title.name }).then(async res => {
-        title.isEditing = false;
-        refleshTitles();
+const changeContent = (conversation) => {
+    invoke('change_message', { id: conversation.id, title: conversation.title }).then(async res => {
+        conversation.isEditing = false;
+        refleshConversations();
     });
 }
 
@@ -371,13 +374,13 @@ const deleteThread = (id) => {
     console.log('delete_thread');
     invoke('delete_thread', { id }).then(async res => {
         console.log('delete thread response.', res);
-        refleshTitles();
+        refleshConversations();
     });
 }
 const deleteContent = (id) => {
     invoke('delete_message', { id }).then(async res => {
         console.log('delete response.', res);
-        refleshTitles();
+        refleshConversations();
     });
 }
 const add_template = () => {
@@ -402,7 +405,7 @@ const save_chat = (e, saveThread = false) => {
         })
     }).then(async res => {
         clear_search();
-        refleshTitles();
+        refleshConversations();
         console.log('response.', res);
     });
 
@@ -614,23 +617,23 @@ const TEMPLATES = [
                         </div>
                     </div>
                     <div v-else style="overflow-y: scroll; max-height: 90vh;">
-                        <div v-for="title in titleListSorted" :key="'title_id_' + title.id"
+                        <div v-for="conversation in conversationListSorted" :key="'conversation_id_' + conversation.id"
                             style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            <template v-if="!title.isEditing">
-                                <div style="flex: glow; max-width: 400px;" @click="loadContent(title.id)">
-                                    <span v-if="title.id.startsWith('thread_')"><img src="./assets/chatgpt.png"
+                            <template v-if="!conversation.isEditing">
+                                <div style="flex: glow; max-width: 400px;" @click="loadContent(conversation.id)">
+                                    <span v-if="conversation.id.startsWith('thread_')"><img src="./assets/chatgpt.png"
                                             style="width: 20px; height:20px;" />Th:</span>
-                                    {{ title.name || '(タイトルなし)' }}
+                                    {{ conversation.title || '(タイトルなし)' }}
                                 </div>
                                 <div style="flex: 1">
-                                    <button @click="deleteContent(title.id)" class="button-sm">削</button>
-                                    <button @click="() => title.isEditing = true" class="button-sm">変</button>
+                                    <button @click="deleteContent(conversation.id)" class="button-sm">削</button>
+                                    <button @click="() => conversation.isEditing = true" class="button-sm">変</button>
                                 </div>
                             </template>
                             <template v-else>
                                 <div style="flex: glow; max-width: 400px;">
-                                    <input type="text" v-model="title.name" @blur="changeContent(title)"
-                                        @keypress.enter="changeContent(title)" />
+                                    <input type="text" v-model="conversation.title" @blur="changeContent(conversation)"
+                                        @keypress.enter="changeContent(conversation)" />
                                 </div>
                             </template>
                         </div>
@@ -638,7 +641,7 @@ const TEMPLATES = [
                 </div>
             </div>
             <MultipaneResizer></MultipaneResizer>
-            <div style="flex-direction: column; width:100%; flex: 1 1 0%; overflow: hidden;">
+            <div style="flex-direction: column; width:100%; flex: 1 1 0%; overflow: scroll;">
                 <div>
                     <label v-for="chatTypeObj in CHAT_TYPE_LIST" :key="'chat_type_' + chatTypeObj.id"><input
                             type="radio" v-model="chatType" :value="chatTypeObj.id" />{{ chatTypeObj.disp }}</label>

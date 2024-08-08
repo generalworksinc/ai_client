@@ -17,6 +17,7 @@ mod models;
 mod util;
 mod chat_completion;
 
+use anyhow::Context;
 use futures::future;
 use futures::stream::StreamExt;
 use models::chat::ChatApiMessage;
@@ -42,7 +43,6 @@ use std::sync::RwLock;
 pub static API_KEY: LazyLock<RwLock<String>> = LazyLock::new(|| RwLock::new(String::new()));
 
 pub static mut SAVING_DIRECTORY: String = String::new();
-const DIR_TITLE: &str = "titles";
 const DIR_CONVERSATION: &str = "conversations";
 const DIR_ASSISTANTS: &str = "assistants";
 const DIR_THREADS: &str = "threads";
@@ -76,6 +76,16 @@ pub fn create_reqwest_client() -> reqwest::Client {
 }
 
 ////////ChatGPT API Response /////////////////////////////////////////////////////
+
+#[derive(Serialize, Deserialize, Debug, Default)]
+struct AIClientConversation {
+    pub assistant_id: Option<String>,
+    pub title: String,
+    pub messages: Vec<ChatApiMessageWithHtml>,
+    // pub name: Option<String>,
+    pub id: String,
+    pub time: Option<String>,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ChatApiMessageWithHtml {
@@ -233,15 +243,17 @@ async fn get_api_key(app_handle: tauri::AppHandle) -> Result<String, String> {
 async fn change_message(
     app_handle: tauri::AppHandle,
     id: String,
-    name: String,
+    title: String,
 ) -> Result<String, String> {
     let dir = unsafe { SAVING_DIRECTORY.clone() };
-    let file_path_title = std::path::Path::new(dir.as_str())
-        .join(DIR_TITLE)
+    let file_path_conversation = std::path::Path::new(dir.as_str())
+        .join(DIR_CONVERSATION)
         .join(id.clone());
 
-    if file_path_title.exists() {
-        std::fs::write(file_path_title, name).map_err(|err| err.to_string())?;
+    if file_path_conversation.exists() {
+        let mut conversation_obj: AIClientConversation = serde_json::from_str(std::fs::read_to_string(file_path_conversation.as_path()).unwrap().as_str()).unwrap();
+        conversation_obj.title = title;
+        std::fs::write(file_path_conversation, serde_json::to_string(&conversation_obj).unwrap()).map_err(|err| err.to_string())?;
         //更新
         // title_f.write_all(title.as_bytes()).unwrap();
     }
@@ -279,19 +291,22 @@ async fn delete_thread(app_handle: tauri::AppHandle, id: String) -> Result<Strin
     }
 
     //conversationがthreadひも付きになっていた場合、ひも付きがなくなるので、ファイル名を変更する
-    // let file_path_conversation = std::path::Path::new(dir.as_str())
-    //     .join(DIR_CONVERSATION)
-    //     .join(id.clone());
-    // if file_path_conversation.exists() {
-    //     //削除
-    //     std::fs::remove_file(file_path_conversation).map_err(|x| x.to_string())?;
-    // }
-    // if file_path_title.exists() {
-    //     //削除
-    //     std::fs::remove_file(file_path_title).map_err(|x| x.to_string())?;
-    // }
-
-    Ok("削除しました".to_string())
+    let file_path_conversation = std::path::Path::new(dir.as_str())
+        .join(DIR_CONVERSATION)
+        .join(id.clone());
+    if file_path_conversation.exists() {
+        //ID付け替える
+        let new_id = uuid::Uuid::new_v4().to_string();
+        let new_path =  std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION).join(new_id.as_str());
+        std::fs::rename(file_path_conversation.as_path(), new_path.as_path()).map_err(|x| x.to_string())?;
+        let file_data_str = std::fs::read_to_string(new_path.as_path()).map_err(|x| x.to_string())?;
+        let mut conversation: AIClientConversation = serde_json::from_str(file_data_str.as_str()).map_err(|x| x.to_string())?;
+        conversation.id = new_id;
+        let file_data_updated_str = serde_json::to_string(&conversation).unwrap();
+        std::fs::write(new_path.as_path(), file_data_updated_str).map_err(|x| x.to_string())?;
+    }
+    
+    Ok("ID変更しました".to_string())
 }
 
 #[tauri::command]
@@ -300,36 +315,17 @@ async fn delete_message(app_handle: tauri::AppHandle, id: String) -> Result<Stri
     let file_path_conversation = std::path::Path::new(dir.as_str())
         .join(DIR_CONVERSATION)
         .join(id.clone());
-    let file_path_title = std::path::Path::new(dir.as_str())
-        .join(DIR_TITLE)
-        .join(id.clone());
+    
     if file_path_conversation.exists() {
         //削除
         std::fs::remove_file(file_path_conversation).map_err(|x| x.to_string())?;
     }
-    if file_path_title.exists() {
-        //削除
-        std::fs::remove_file(file_path_title).map_err(|x| x.to_string())?;
-    }
+    
     //Threadの場合、削除します
-    let (thread_id, _) = util::get_thread_and_assistant_id(id.as_str());
-    if !thread_id.is_empty() {
-        println!("thread_id: {:#?}", thread_id);
-        delete_thread(app_handle, thread_id.clone()).await?;
-        // let client = create_client().map_err(|err| err.to_string())?;
-        // match client
-        //     .threads()
-        //     .delete(thread_id.as_str())
-        //     .await
-        //     .map_err(|x| x.to_string())
-        // {
-        //     Ok(_) => {
-        //         println!("thread delete success");
-        //     }
-        //     Err(err) => {
-        //         eprintln!("thread delete error: {:#?}", err);
-        //     }
-        // }
+
+    if !id.is_empty() && util::is_thread(id.as_str()){
+        println!("thread_id: {:#?}", id);
+        delete_thread(app_handle, id.clone()).await?;
     }
 
     Ok("削除しました".to_string())
@@ -349,24 +345,38 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
     println!("params: {:#?}", params);
     let post_data = serde_json::from_str::<PostData>(params.as_str()).unwrap();
 
+    //make file title
+    let mut title_content = "".to_string();
+    let messages =  post_data.data;
+    for message in &messages {
+        println!("message: {:#?}", message);
+        if message.role == "user" {
+            title_content += message.content.as_str();
+            break;
+        } else if message.role == "assistant" {
+            title_content += message.content.as_str();
+            break;
+        }
+    }
+    if title_content.len() > 30 {
+        match get_title(title_content.clone()).await {
+            Ok(title) => {
+                title_content = title;
+            }
+            Err(err) => {
+                println!("err: {:#?}", err);
+                // title_f.write_all(title_content.as_bytes()).unwrap();
+                return Err("".to_string());
+            }
+        }
+    }
+    
     //threadの保存が不要な場合、削除する
     let thread_id = if let Some(thread_id) = post_data.thread_id.filter(|x| !x.is_empty()) {
         if post_data.save_thread == Some(true) {
-            if let Some(assistant_id) = post_data.assistant_id.filter(|x| !x.is_empty()) {
-                thread_id + assistant_id.as_str()
-            } else {
-                thread_id
-            }
+            thread_id
         } else {
-            let client = create_client().map_err(|err| err.to_string())?;
-            match client.threads().delete(&thread_id).await {
-                Ok(_) => {
-                    println!("thread delete success");
-                }
-                Err(err) => {
-                    eprintln!("thread delete error: {:#?}", err);
-                }
-            }
+            delete_thread(app_handle, thread_id.clone()).await?;
             "".to_string()
         }
     } else {
@@ -376,7 +386,7 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
     // write_message into file.
     let id = if !thread_id.is_empty() {
         thread_id
-    } else if let Some(id) = post_data.id {
+    } else if let Some(id) = post_data.id .clone(){
         id
     } else {
         uuid::Uuid::new_v4().to_string()
@@ -393,49 +403,18 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
     }
     let file_path = content_dir_path.join(id.clone());
     let mut f = File::create(file_path).unwrap();
-    f.write_all(serde_json::to_string(&post_data.data).unwrap().as_bytes())
-        .unwrap();
-
-    // write_id and title.
-    let title_dir_path = std::path::Path::new(dir.as_str()).join(DIR_TITLE);
-    if !title_dir_path.exists() {
-        if let Err(_) = std::fs::create_dir_all(title_dir_path.as_path()) {
-            return Err("can't create title directory.".into());
-        }
-    }
-    let title_file = title_dir_path.join(id.clone());
-
-    //make file title
-    let mut title_content = "".to_string();
-    for message in post_data.data {
-        println!("message: {:#?}", message);
-        if message.role == "user" {
-            title_content += message.content.as_str();
-            break;
-        } else if message.role == "assistant" {
-            title_content += message.content.as_str();
-            break;
-        }
-    }
-    let mut title_f = File::create(title_file).unwrap();
-    // println!("title_content: {:#?}", title_content.clone());
-    if title_content.len() > 30 {
-        match get_title(title_content.clone()).await {
-            Ok(title) => {
-                // println!("title: {:#?}", title);
-                title_f.write_all(title.as_bytes()).unwrap();
-            }
-            Err(err) => {
-                println!("err: {:#?}", err);
-                // title_f.write_all(title_content.as_bytes()).unwrap();
-                return Err("".to_string());
-            }
-        }
-    } else {
-        title_f.write_all(title_content.as_bytes()).unwrap();
-    }
+    // let messages = serde_json::from_str::<Vec<ChatApiMessageWithHtml>>(post_data.data)?;
+    let ai_client_conversation_data = AIClientConversation{
+        id: id.clone(),
+        assistant_id: post_data.assistant_id.clone(),
+        title: title_content ,
+        messages: messages.into_iter().map(|x| x.convert_with_html()).collect(),
+        ..Default::default()
+    };
+    f.write_all(serde_json::to_string(&ai_client_conversation_data).unwrap().as_bytes()).unwrap();
 
     refresh_index_db().unwrap();
+
     Ok("".to_string())
 }
 
@@ -516,28 +495,33 @@ fn refresh_index_db() -> anyhow::Result<()> {
     let dir = unsafe { SAVING_DIRECTORY.clone() };
     let conversation_dir_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION);
     if let Ok(read_dir) = conversation_dir_path.read_dir() {
-        for entry in read_dir.flatten() {
-            let file_path = entry.path();
-            let file_name = file_path.file_name().unwrap().to_string_lossy();
+        for entry in read_dir.filter_map(|x| x.ok()) {
+            let file_path_buff = entry.path().clone();
+            let file_name = file_path_buff.file_name().unwrap().to_string_lossy();
+
+            let file_data_str = std::fs::read_to_string(file_path_buff.as_path())?;
+            println!("file_data_str: {:#?}", file_data_str);
+            let ai_conversation_obj: AIClientConversation = serde_json::from_str(file_data_str.as_str())?;
             // println!("file_name: {:#?}", file_name);
             tree.insert(
-                std::fs::read_to_string(&file_path)?.as_bytes(),
+                std::fs::read_to_string(&file_path_buff)?.as_bytes(),
                 file_name.as_bytes(),
             )?;
+            title_tree.insert(file_name.as_bytes(), ai_conversation_obj.title.as_bytes())?;
         }
     }
 
     //key: id, value: title
-    let title_dir_path = std::path::Path::new(dir.as_str()).join(DIR_TITLE);
-    if let Ok(read_dir) = title_dir_path.read_dir() {
-        for entry in read_dir.flatten() {
-            let file_path = entry.path();
-            let file_name = file_path.file_name().unwrap().to_string_lossy();
-            let title = std::fs::read_to_string(&file_path)?;
-            // println!("title {:#?}", title );
-            title_tree.insert(file_name.as_bytes(), title.as_bytes())?;
-        }
-    }
+    // let title_dir_path = std::path::Path::new(dir.as_str()).join(DIR_TITLE);
+    // if let Ok(read_dir) = title_dir_path.read_dir() {
+    //     for entry in read_dir.flatten() {
+    //         let file_path = entry.path();
+    //         let file_name = file_path.file_name().unwrap().to_string_lossy();
+    //         let title = std::fs::read_to_string(&file_path)?;
+    //         // println!("title {:#?}", title );
+    //         title_tree.insert(file_name.as_bytes(), title.as_bytes())?;
+    //     }
+    // }
     title_tree.flush()?;
     tree.flush()?;
     Ok(())
@@ -602,17 +586,17 @@ async fn load_messages(app_handle: tauri::AppHandle, id: String) -> Result<Strin
         .join(DIR_CONVERSATION)
         .join(id.clone());
     if file_path.exists() {
-        let mut messages = serde_json::from_str::<Vec<ChatApiMessageWithHtml>>(
+        let mut conversation = serde_json::from_str::<AIClientConversation>(
             std::fs::read_to_string(file_path)
                 .unwrap_or_default()
                 .as_str(),
-        )
-        .unwrap();
-        for message in messages.iter_mut() {
+        ).map_err(|x| x.to_string())?;
+
+        for message in conversation.messages.iter_mut() {
             message.content_html = Some(markdown::to_html(message.content.as_str()));
         }
 
-        Ok(serde_json::to_string(&messages).unwrap())
+        Ok(serde_json::to_string(&conversation).unwrap())
     } else {
         Ok("".to_string())
     }
@@ -665,9 +649,9 @@ async fn reflesh_threads(app_handle: tauri::AppHandle) -> Result<String, String>
 #[tauri::command]
 async fn reflesh_titles(app_handle: tauri::AppHandle) -> Result<String, String> {
     let dir = unsafe { SAVING_DIRECTORY.clone() };
-    let title_path = std::path::Path::new(dir.as_str()).join(DIR_TITLE);
-    if title_path.exists() {
-        if let Ok(read_dir) = title_path.read_dir() {
+    let conversation_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION);
+    if conversation_path.exists() {
+        if let Ok(read_dir) = conversation_path.read_dir() {
             let data_vec = read_dir
                 .filter_map(|entry| {
                     if let Ok(entry) = entry {
@@ -681,18 +665,19 @@ async fn reflesh_titles(app_handle: tauri::AppHandle) -> Result<String, String> 
                                 .unwrap()
                                 .as_nanos() as i64,
                         );
-
-                        let data = TitleData {
-                            name: std::fs::read_to_string(entry.path()).unwrap(),
-                            id: entry.file_name().to_string_lossy().to_string(),
-                            time: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
-                        };
-                        Some(data)
+                        let mut ai_client_conversation_cata: AIClientConversation = serde_json::from_str(std::fs::read_to_string(entry.path()).unwrap().as_str()).unwrap();
+                        ai_client_conversation_cata.time = Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string());
+                        // let data = AIClientConversation {
+                        //     name: std::fs::read_to_string(entry.path()).unwrap(),
+                        //     id: entry.file_name().to_string_lossy().to_string(),
+                        //     time: datetime.format("%Y-%m-%d %H:%M:%S").to_string(),
+                        // };
+                        Some(ai_client_conversation_cata)
                     } else {
                         None
                     }
                 })
-                .collect::<Vec<TitleData>>();
+                .collect::<Vec<AIClientConversation>>();
             return Ok(serde_json::to_string(&data_vec).unwrap());
         }
     }

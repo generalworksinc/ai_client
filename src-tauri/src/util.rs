@@ -15,21 +15,25 @@ pub fn create_client() -> Result<Client<OpenAIConfig>> {
     ))
 }
 
-pub fn get_thread_and_assistant_id(id: &str) -> (String, String) {
-    //thread_xxxxxxassistant_yyyyyy -> (xxxxxx, yyyyyy)
-    if id.starts_with(OPENAI_THREAD_HEAD_WORD) {
-        let parts: Vec<&str> = id.split(OPENAI_THREAD_HEAD_WORD).collect();
-        let tmp_list = parts[1]
-            .split(OPENAI_ASSISTANT_HEAD_WORD)
-            .collect::<Vec<&str>>();
-        let thread_id = tmp_list[0];
-        let assistant_id = if tmp_list.len() >= 2 { tmp_list[1] } else { "" };
+// pub fn get_thread_and_assistant_id(id: &str) -> (String, String) {
+//     //thread_xxxxxxassistant_yyyyyy -> (xxxxxx, yyyyyy)
+//     if id.starts_with(OPENAI_THREAD_HEAD_WORD) {
+//         let parts: Vec<&str> = id.split(OPENAI_THREAD_HEAD_WORD).collect();
+//         let tmp_list = parts[1]
+//             .split(OPENAI_ASSISTANT_HEAD_WORD)
+//             .collect::<Vec<&str>>();
+//         let thread_id = tmp_list[0];
+//         let assistant_id = if tmp_list.len() >= 2 { tmp_list[1] } else { "" };
 
-        (
-            OPENAI_THREAD_HEAD_WORD.to_string() + thread_id,
-            OPENAI_ASSISTANT_HEAD_WORD.to_string() + assistant_id,
-        )
-    } else {
-        ("".to_string(), "".to_string())
-    }
+//         (
+//             OPENAI_THREAD_HEAD_WORD.to_string() + thread_id,
+//             OPENAI_ASSISTANT_HEAD_WORD.to_string() + assistant_id,
+//         )
+//     } else {
+//         ("".to_string(), "".to_string())
+//     }
+// }
+
+pub fn is_thread(id: &str) -> bool {
+    id.starts_with(OPENAI_THREAD_HEAD_WORD)
 }
