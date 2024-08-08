@@ -1,6 +1,6 @@
 use crate::models::chat::ChatApiMessage;
 use crate::util::{self, create_client};
-use crate::{DIR_ASSISTANTS, SAVING_DIRECTORY};
+use crate::{DIR_ASSISTANTS, DIR_THREADS, SAVING_DIRECTORY};
 use base64::prelude::*;
 use futures::StreamExt;
 use serde::Deserialize;
@@ -517,6 +517,28 @@ async fn exec_make_new_thread(
     //     .delete("thread_w1u1EKk34jDqXJBeJj6wQ2Ye")
     //     .await?;
     println!("thread_id: {:?}", thread.id);
+
+    //threadをファイルにも保存（後で削除できるように
+    let dir = unsafe { SAVING_DIRECTORY.clone() };
+    // let assistants_dir_path = std::path::Path::new(dir.as_str()).join(DIR_ASSISTANTS);
+
+    // if !assistants_dir_path.exists() {
+    //     std::fs::create_dir_all(assistants_dir_path.as_path())?;
+    // }
+    // let file_path = assistants_dir_path.join(assistant_object.id.clone());
+    // let mut f = File::create(file_path).unwrap();
+    // let json_data = serde_json::to_string(&assistant_object)?;
+    // f.write_all(json_data.as_bytes())?;
+    let threads_dir_path = std::path::Path::new(dir.as_str()).join(DIR_THREADS);
+
+    if !threads_dir_path.exists() {
+        std::fs::create_dir_all(threads_dir_path.as_path())?;
+    }
+    let thread_file_path = threads_dir_path.join(thread.id.clone());
+    let mut f_thread = File::create(thread_file_path)?;
+    let json_data = serde_json::to_string(&thread)?;
+    f_thread.write_all(json_data.as_bytes())?;
+    
     Ok(())
 }
 

@@ -31,7 +31,7 @@ use tauri::{CustomMenuItem, Menu, Submenu};
 use rand::prelude::*;
 use util::create_client;
 
-use chrono::{TimeZone, Utc};
+use chrono::{TimeZone, Utc, Local};
 use once_cell::sync::OnceCell;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -45,6 +45,7 @@ pub static mut SAVING_DIRECTORY: String = String::new();
 const DIR_TITLE: &str = "titles";
 const DIR_CONVERSATION: &str = "conversations";
 const DIR_ASSISTANTS: &str = "assistants";
+const DIR_THREADS: &str = "threads";
 
 pub static PATH_DIR_CHATGPT_CONFIG: OnceCell<PathBuf> = OnceCell::new();
 
@@ -148,11 +149,21 @@ struct Keys {
     //    travis: Option<String>,
 }
 
+#[derive(Deserialize, Serialize, Default)]
+struct ThreadData {
+    pub id: Option<String>,
+    pub name: Option<String>, 
+    pub object: Option<String>,
+    pub created_at: Option<i64>,
+    pub time: Option<String>,
+    // {"id":"thread_aFRZqocRwwAJQ0wTBphELg1v","object":"thread","created_at":1723108843,"tool_resources":{},"metadata":{}}
+}
+
 #[derive(Deserialize, Serialize)]
 struct TitleData {
-    id: String,
-    name: String,
-    time: String,
+    pub id: String,
+    pub name: String,
+    pub time: String,
 }
 
 #[tauri::command]
@@ -236,6 +247,53 @@ async fn change_message(
     }
     Ok("変更しました".to_string())
 }
+
+#[tauri::command]
+async fn delete_thread(app_handle: tauri::AppHandle, id: String) -> Result<String, String> {
+    //Threadを削除
+    println!("thread_id: {:#?}", id);
+    let client = create_client().map_err(|err| err.to_string())?;
+    match client
+        .threads()
+        .delete(id.as_str())
+        .await
+        .map_err(|x| x.to_string())
+    {
+        Ok(_) => {
+            println!("thread delete success {:?}", id);
+        }
+        Err(err) => {
+            eprintln!("thread delete error: {:#?}", err);
+        }
+    }
+
+    let dir = unsafe { SAVING_DIRECTORY.clone() };
+
+    //threadファイルを削除
+    let file_path_thread = std::path::Path::new(dir.as_str())
+        .join(DIR_THREADS)
+        .join(id.clone());
+    if file_path_thread.exists() {
+        //削除
+        std::fs::remove_file(file_path_thread).map_err(|x| x.to_string())?;
+    }
+
+    //conversationがthreadひも付きになっていた場合、ひも付きがなくなるので、ファイル名を変更する
+    // let file_path_conversation = std::path::Path::new(dir.as_str())
+    //     .join(DIR_CONVERSATION)
+    //     .join(id.clone());
+    // if file_path_conversation.exists() {
+    //     //削除
+    //     std::fs::remove_file(file_path_conversation).map_err(|x| x.to_string())?;
+    // }
+    // if file_path_title.exists() {
+    //     //削除
+    //     std::fs::remove_file(file_path_title).map_err(|x| x.to_string())?;
+    // }
+
+    Ok("削除しました".to_string())
+}
+
 #[tauri::command]
 async fn delete_message(app_handle: tauri::AppHandle, id: String) -> Result<String, String> {
     let dir = unsafe { SAVING_DIRECTORY.clone() };
@@ -257,20 +315,21 @@ async fn delete_message(app_handle: tauri::AppHandle, id: String) -> Result<Stri
     let (thread_id, _) = util::get_thread_and_assistant_id(id.as_str());
     if !thread_id.is_empty() {
         println!("thread_id: {:#?}", thread_id);
-        let client = create_client().map_err(|err| err.to_string())?;
-        match client
-            .threads()
-            .delete(thread_id.as_str())
-            .await
-            .map_err(|x| x.to_string())
-        {
-            Ok(_) => {
-                println!("thread delete success");
-            }
-            Err(err) => {
-                eprintln!("thread delete error: {:#?}", err);
-            }
-        }
+        delete_thread(app_handle, thread_id.clone()).await?;
+        // let client = create_client().map_err(|err| err.to_string())?;
+        // match client
+        //     .threads()
+        //     .delete(thread_id.as_str())
+        //     .await
+        //     .map_err(|x| x.to_string())
+        // {
+        //     Ok(_) => {
+        //         println!("thread delete success");
+        //     }
+        //     Err(err) => {
+        //         eprintln!("thread delete error: {:#?}", err);
+        //     }
+        // }
     }
 
     Ok("削除しました".to_string())
@@ -560,6 +619,50 @@ async fn load_messages(app_handle: tauri::AppHandle, id: String) -> Result<Strin
 }
 
 #[tauri::command]
+async fn reflesh_threads(app_handle: tauri::AppHandle) -> Result<String, String> {
+    let dir = unsafe { SAVING_DIRECTORY.clone() };
+    let thread_path = std::path::Path::new(dir.as_str()).join(DIR_THREADS);
+    if thread_path.exists() {
+        if let Ok(read_dir) = thread_path.read_dir() {
+            let data_vec = read_dir
+                .filter_map(|entry| {
+                    if let Ok(entry) = entry {
+                        let datetime = Utc.timestamp_nanos(
+                            entry
+                                .metadata()
+                                .unwrap()
+                                .modified()
+                                .unwrap()
+                                .duration_since(std::time::SystemTime::UNIX_EPOCH)
+                                .unwrap()
+                                .as_nanos() as i64,
+                        );
+
+                        let thread_file_string = std::fs::read_to_string(entry.path()).map_err(|x| x.to_string()).unwrap();
+                        let mut threadData: ThreadData = if thread_file_string.is_empty() { ThreadData::default() } else { serde_json::from_str(thread_file_string.as_str()).unwrap()};
+                        if threadData.created_at.is_none() {
+                            threadData.time = Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string());
+                        } else {
+                            chrono::Utc.timestamp_millis_opt(threadData.created_at.unwrap()*1000).map(|x| {
+                                threadData.time = Some(x.format("%Y-%m-%d %H:%M:%S").to_string());
+                            });
+                        }
+                        if threadData.id.is_none() {
+                            threadData.id = Some(entry.file_name().to_string_lossy().to_string());
+                        }
+                        Some(threadData)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<ThreadData>>();
+            return Ok(serde_json::to_string(&data_vec).unwrap());
+        }
+    }
+    Err("".to_string())
+}
+
+#[tauri::command]
 async fn reflesh_titles(app_handle: tauri::AppHandle) -> Result<String, String> {
     let dir = unsafe { SAVING_DIRECTORY.clone() };
     let title_path = std::path::Path::new(dir.as_str()).join(DIR_TITLE);
@@ -830,8 +933,10 @@ fn main() {
             set_api_key,
             get_api_key,
             reflesh_titles,
+            reflesh_threads,
             load_messages,
             delete_message,
+            delete_thread,
             change_message,
             search_conversations,
             reflesh_index,

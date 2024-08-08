@@ -17,9 +17,15 @@ const CHAT_TYPE_LIST = [
     { id: "audio", disp: "Audio" },
 ]
 
+const LIST_MODE = {
+    CONVERSATIONS: "conversations",
+    THREAD: "thread",
+}
+
 const router = useRouter();
 
 const message = ref("");
+const listMode = ref(LIST_MODE.CONVERSATIONS)
 const all_messages = ref([]);
 
 const chatType = ref("chat");
@@ -43,6 +49,7 @@ const lastWaitingMessageId = ref("");
 const timeoutSec = ref(180);
 
 const titleList = ref([]);
+const threadList = ref([]);
 const assistantList = ref([]);
 const searchResultList = ref([]);
 
@@ -184,6 +191,12 @@ const refleshTitles = () => {
         titleList.value = JSON.parse(res);
         // titles.values = 
     });
+
+    invoke('reflesh_threads').then(async res => {
+        console.log('reflesh_threads response.', res);
+        threadList.value = JSON.parse(res);
+        // titles.values = 
+    });
 };
 const getThreadAndAssistantId = (id) => {
     // thread_xxxxxxassistant_yyyyyy -> (xxxxxx, yyyyyy)
@@ -197,6 +210,9 @@ const getThreadAndAssistantId = (id) => {
     } else {
         return ["", ""]; // 空の文字列の配列を返す
     }
+}
+const loadThread = (id) => {
+    console.log('loadThread called.', id);
 }
 const loadContent = (id) => {
     invoke('load_messages', { id }).then(async res => {
@@ -219,6 +235,11 @@ const loadContent = (id) => {
         }
     });
 }
+const threadListSorted = computed(() => {
+    return threadList.value.sort((a, b) => {
+        return a.time === b.time ? 0 : a.time < b.time ? 1 : -1;
+    });
+});
 const searchResultListSorted = computed(() => {
     return searchResultList.value.sort((a, b) => {
         return a.time === b.time ? 0 : a.time < b.time ? 1 : -1;
@@ -346,6 +367,13 @@ const changeContent = (title) => {
     });
 }
 
+const deleteThread = (id) => {
+    console.log('delete_thread');
+    invoke('delete_thread', { id }).then(async res => {
+        console.log('delete thread response.', res);
+        refleshTitles();
+    });
+}
 const deleteContent = (id) => {
     invoke('delete_message', { id }).then(async res => {
         console.log('delete response.', res);
@@ -550,45 +578,62 @@ const TEMPLATES = [
     <div class="container" style="dislpay: flex;">
         <Multipane class="vertical-panes w-full" layout="vertical">
             <div>
-                <div style="width: 15rem;">
-                    <input type="text" v-model="search_word" @keypress.enter="search" />
-                    <div v-if="errorMsg" style="font-weight: bold; color: #CA2A2A;">{{ errorMsg }}</div>
-                    <button @click="search">search</button>
-                    <!-- <button @click="reflesh_index">reflesh index</button> -->
-                    <button @click="clear_search">clear search</button>
+                <div>
+                    <label v-for="(value, key) in LIST_MODE" :key="'list_mode_' + key"><input type="radio"
+                            v-model="listMode" :value="value" name="list_mode" />{{ value }}</label>
                 </div>
-                <div v-if="searchResultListSorted && searchResultListSorted.length > 0"
-                    style="overflow-y: scroll; max-height: 90vh;">
-                    <div v-for="searchResult in searchResultListSorted" @click="loadContent(searchResult.id)"
-                        :key="'search_result_id_' + searchResult.id"
-                        style="max-width: 400px; font-weight: bold; color: #CA2A2A; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        {{ searchResult.title }}
-                    </div>
-                </div>
-                <div v-else style="overflow-y: scroll; max-height: 90vh;">
-                    <div v-for="title in titleListSorted" :key="'title_id_' + title.id"
-                        style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                        <template v-if="!title.isEditing">
-                            <div style="flex: glow; max-width: 400px;" @click="loadContent(title.id)">
-                                <span v-if="title.id.startsWith('thread_')"><img src="./assets/chatgpt.png"
-                                        style="width: 20px; height:20px;" />Th:</span>
-                                {{ title.name || '(タイトルなし)' }}
+                <div v-if="listMode === LIST_MODE.THREAD" style="overflow-y: scroll; max-height: 90vh;">
+                    <div style="overflow-y: scroll; max-height: 90vh;">
+                        <div v-for="thread in threadListSorted" :key="'thread_id_' + thread.id"
+                            style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+
+                            <div style="flex: glow; max-width: 400px;" @click="loadThread(thread.id)">
+                                <img src="./assets/chatgpt.png" style="width: 20px; height:20px;" />Th:
+                                {{ thread.name || thread.id }}
                             </div>
                             <div style="flex: 1">
-                                <button @click="deleteContent(title.id)" class="button-sm">削</button>
-                                <button @click="() => title.isEditing = true" class="button-sm">変</button>
+                                <button @click="deleteThread(thread.id)" class="button-sm">削</button>
                             </div>
-                            <!--<div>
-                            title all json:
-                            {{ JSON.stringify(title) }}
-                        </div> -->
-                        </template>
-                        <template v-else>
-                            <div style="flex: glow; max-width: 400px;">
-                                <input type="text" v-model="title.name" @blur="changeContent(title)"
-                                    @keypress.enter="changeContent(title)" />
-                            </div>
-                        </template>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="listMode === LIST_MODE.CONVERSATIONS" style="overflow-y: scroll; max-height: 90vh;">
+                    <div style="width: 15rem;">
+                        <input type="text" v-model="search_word" @keypress.enter="search" />
+                        <div v-if="errorMsg" style="font-weight: bold; color: #CA2A2A;">{{ errorMsg }}</div>
+                        <button @click="search">search</button>
+                        <!-- <button @click="reflesh_index">reflesh index</button> -->
+                        <button @click="clear_search">clear search</button>
+                    </div>
+                    <div v-if="searchResultListSorted && searchResultListSorted.length > 0"
+                        style="overflow-y: scroll; max-height: 90vh;">
+                        <div v-for="searchResult in searchResultListSorted" @click="loadContent(searchResult.id)"
+                            :key="'search_result_id_' + searchResult.id"
+                            style="max-width: 400px; font-weight: bold; color: #CA2A2A; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            {{ searchResult.title }}
+                        </div>
+                    </div>
+                    <div v-else style="overflow-y: scroll; max-height: 90vh;">
+                        <div v-for="title in titleListSorted" :key="'title_id_' + title.id"
+                            style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <template v-if="!title.isEditing">
+                                <div style="flex: glow; max-width: 400px;" @click="loadContent(title.id)">
+                                    <span v-if="title.id.startsWith('thread_')"><img src="./assets/chatgpt.png"
+                                            style="width: 20px; height:20px;" />Th:</span>
+                                    {{ title.name || '(タイトルなし)' }}
+                                </div>
+                                <div style="flex: 1">
+                                    <button @click="deleteContent(title.id)" class="button-sm">削</button>
+                                    <button @click="() => title.isEditing = true" class="button-sm">変</button>
+                                </div>
+                            </template>
+                            <template v-else>
+                                <div style="flex: glow; max-width: 400px;">
+                                    <input type="text" v-model="title.name" @blur="changeContent(title)"
+                                        @keypress.enter="changeContent(title)" />
+                                </div>
+                            </template>
+                        </div>
                     </div>
                 </div>
             </div>
