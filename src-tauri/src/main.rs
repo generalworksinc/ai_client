@@ -500,7 +500,7 @@ fn refresh_index_db() -> anyhow::Result<()> {
             let file_name = file_path_buff.file_name().unwrap().to_string_lossy();
 
             let file_data_str = std::fs::read_to_string(file_path_buff.as_path())?;
-            println!("file_data_str: {:#?}", file_data_str);
+            // println!("file_data_str: {:#?}", file_data_str);
             let ai_conversation_obj: AIClientConversation = serde_json::from_str(file_data_str.as_str())?;
             // println!("file_name: {:#?}", file_name);
             tree.insert(
@@ -893,6 +893,35 @@ fn main() {
     let context = tauri::generate_context!();
     let menu = tauri::Menu::os_default(&context.package_info().name).add_submenu(submenu);
 
+    // let dir = "/home/masatoyuna/nextcloud/chatgpt".to_string();
+    // let conversation_dir_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION);
+    // let title_dir_path = std::path::Path::new(dir.as_str()).join("titles");
+    // if let Ok(read_dir) = conversation_dir_path.read_dir() {
+    //     for entry in read_dir.filter_map(|x| x.ok()) {
+
+    //         let file_path_buff = entry.path().clone();
+    //         let file_name = file_path_buff.file_name().unwrap().to_string_lossy();
+
+    //         let conversation_list_str = std::fs::read_to_string(file_path_buff.as_path()).unwrap();
+            
+    //         let title_path = title_dir_path.join(file_name.as_ref());
+    //         // println!("title_path: {:#?}", title_path);
+    //         let title = std::fs::read_to_string(title_path.as_path()).unwrap();
+            
+    //         // println!("title: {:#?}", title);
+    //         // println!("file_data_str: {:#?}", conversation_list_str);
+    //         let new_obj = AIClientConversation{
+    //             id: file_name.to_string(),
+    //             title: title,
+    //             messages: serde_json::from_str::<Vec<ChatApiMessageWithHtml>>(conversation_list_str.as_str()).unwrap(),                
+    //             ..Default::default()
+    //         };
+    //         println!("ob: {:#?}", new_obj);
+    //         std::fs::write(file_path_buff.as_path(), serde_json::to_string(&new_obj).unwrap()).unwrap();
+    //     }
+    // }
+
+    // return;
     tauri::Builder::default()
         .menu(menu)
         .on_menu_event(|event| match event.menu_item_id() {
