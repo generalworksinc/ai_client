@@ -20,6 +20,8 @@ const CHAT_TYPE_LIST = [
 const LIST_MODE = {
     CONVERSATIONS: "conversations",
     THREAD: "thread",
+    OPENAI_FILES: "openai_files",
+    VECTORS: "openai_vectors",
 }
 
 const router = useRouter();
@@ -51,6 +53,8 @@ const timeoutSec = ref(180);
 const conversationList = ref([]);
 const threadList = ref([]);
 const assistantList = ref([]);
+const openAIFileList = ref([]);
+const vectorList = ref([]);
 const searchResultList = ref([]);
 
 //audio
@@ -197,6 +201,18 @@ const refleshConversations = () => {
         threadList.value = JSON.parse(res);
         // titles.values = 
     });
+
+    invoke('reflesh_openai_files').then(async res => {
+        console.log('reflesh_openai_files response.', res);
+        openAIFileList.value = JSON.parse(res);
+        // titles.values =
+    });
+
+    invoke('reflesh_vectors').then(async res => {
+        console.log('reflesh_vector response.', res);
+        vectorList.value = JSON.parse(res);
+        // titles.values =
+    });
 };
 const isThread = (id) => {
     return id.startsWith("thread_");
@@ -238,6 +254,16 @@ const loadContent = (id) => {
     });
 };
 
+const vectorListSorted = computed(() => {
+    return vectorList.value.sort((a, b) => {
+        return a.time === b.time ? 0 : a.time < b.time ? 1 : -1;
+    });
+});
+const openAIFileListSorted = computed(() => {
+    return openAIFileList.value.sort((a, b) => {
+        return a.time === b.time ? 0 : a.time < b.time ? 1 : -1;
+    });
+});
 const threadListSorted = computed(() => {
     return threadList.value.sort((a, b) => {
         return a.time === b.time ? 0 : a.time < b.time ? 1 : -1;
@@ -369,7 +395,20 @@ const changeContent = (conversation) => {
         refleshConversations();
     });
 }
-
+const deleteVector = (id) => {
+    console.log('delete_vector');
+    invoke('delete_vector', { id }).then(async res => {
+        console.log('delete vector response.', res);
+        refleshConversations();
+    });
+}
+const deleteOpenAIFile = (id) => {
+    console.log('delete_openai_file');
+    invoke('delete_openai_file', { id }).then(async res => {
+        console.log('delete openai file response.', res);
+        refleshConversations();
+    });
+}
 const deleteThread = (id) => {
     console.log('delete_thread');
     invoke('delete_thread', { id }).then(async res => {
@@ -377,6 +416,7 @@ const deleteThread = (id) => {
         refleshConversations();
     });
 }
+
 const deleteContent = (id) => {
     invoke('delete_message', { id }).then(async res => {
         console.log('delete response.', res);
@@ -600,7 +640,37 @@ const TEMPLATES = [
                         </div>
                     </div>
                 </div>
-                <div v-if="listMode === LIST_MODE.CONVERSATIONS" style="overflow-y: scroll; max-height: 90vh;">
+                <div v-else-if="listMode === LIST_MODE.VECTORS" style="overflow-y: scroll; max-height: 90vh;">
+                    <div style="overflow-y: scroll; max-height: 90vh;">
+                        <div v-for="vector in vectorListSorted" :key="'vector_id_' + vector.id"
+                            style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+
+                            <div style="flex: glow; max-width: 400px;">
+                                <img src="./assets/chatgpt.png" style="width: 20px; height:20px;" />Th:
+                                {{ vector.name || vector.id }}
+                            </div>
+                            <div style="flex: 1">
+                                <button @click="deleteVector(vector.id)" class="button-sm">削</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else-if="listMode === LIST_MODE.OPENAI_FILES" style="overflow-y: scroll; max-height: 90vh;">
+                    <div style="overflow-y: scroll; max-height: 90vh;">
+                        <div v-for="openAIFile in openAIFileListSorted" :key="'openai_file_id_' + openAIFile.id"
+                            style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+
+                            <div style="flex: glow; max-width: 400px;">
+                                <img src="./assets/chatgpt.png" style="width: 20px; height:20px;" />Th:
+                                {{ openAIFile.filename || openAIFile.id }}
+                            </div>
+                            <div style="flex: 1">
+                                <button @click="deleteOpenAIFile(openAIFile.id)" class="button-sm">削</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-else-if="listMode === LIST_MODE.CONVERSATIONS" style="overflow-y: scroll; max-height: 90vh;">
                     <div style="width: 15rem;">
                         <input type="text" v-model="search_word" @keypress.enter="search" />
                         <div v-if="errorMsg" style="font-weight: bold; color: #CA2A2A;">{{ errorMsg }}</div>

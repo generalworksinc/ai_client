@@ -16,8 +16,11 @@ mod embedding;
 mod models;
 mod util;
 mod chat_completion;
+mod open_ai_files;
+mod constants;
 
 use anyhow::Context;
+use constants::{DIR_CONVERSATION, DIR_OPEN_AI_FILES, DIR_THREADS};
 use futures::future;
 use futures::stream::StreamExt;
 use models::chat::ChatApiMessage;
@@ -43,10 +46,6 @@ use std::sync::RwLock;
 pub static API_KEY: LazyLock<RwLock<String>> = LazyLock::new(|| RwLock::new(String::new()));
 
 pub static mut SAVING_DIRECTORY: String = String::new();
-const DIR_CONVERSATION: &str = "conversations";
-const DIR_ASSISTANTS: &str = "assistants";
-const DIR_THREADS: &str = "threads";
-
 pub static PATH_DIR_CHATGPT_CONFIG: OnceCell<PathBuf> = OnceCell::new();
 
 pub fn create_reqwest_client() -> reqwest::Client {
@@ -168,6 +167,8 @@ struct ThreadData {
     pub time: Option<String>,
     // {"id":"thread_aFRZqocRwwAJQ0wTBphELg1v","object":"thread","created_at":1723108843,"tool_resources":{},"metadata":{}}
 }
+
+
 
 #[derive(Deserialize, Serialize)]
 struct TitleData {
@@ -881,11 +882,13 @@ fn main() {
     let settings = CustomMenuItem::new("settings".to_string(), "Settings");
     let assistants = CustomMenuItem::new("assistants".to_string(), "Assistants");
     let samples = CustomMenuItem::new("samples".to_string(), "Samples");
+    let open_ai_files = CustomMenuItem::new("open_ai_files".to_string(), "OpenAIFiles");
     let submenu = Submenu::new(
         "Menu",
         Menu::new()
             .add_item(main_page)
             .add_item(assistants)
+            .add_item(open_ai_files)
             .add_item(samples)
             .add_item(settings),
     );
@@ -931,6 +934,9 @@ fn main() {
             "assistants" => {
                 event.window().emit("open_assistants", "").unwrap();
             }
+            "open_ai_files" => {
+                event.window().emit("open_open_ai_files", "").unwrap();
+            }
             "samples" => {
                 event.window().emit("open_samples", "").unwrap();
             }
@@ -948,9 +954,15 @@ fn main() {
             get_api_key,
             reflesh_titles,
             reflesh_threads,
+            open_ai_files::reflesh_openai_files,
+            open_ai_files::reflesh_vectors,
+            open_ai_files::upload_files ,
             load_messages,
             delete_message,
             delete_thread,
+            open_ai_files::delete_openai_file,
+            open_ai_files:: delete_vector,
+            open_ai_files::make_vector,
             change_message,
             search_conversations,
             reflesh_index,

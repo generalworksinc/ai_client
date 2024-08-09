@@ -34,6 +34,52 @@ const timeoutSec = ref(180);
 const assistantList = ref([]);
 const searchResultList = ref([]);
 
+const selectedVectorList = ref([]);
+const vectorList = ref([]);
+
+const fileInputAssistantElement = ref(null);
+const fileAssistantList = ref([]);
+
+const assistantFilePick = async () => {
+    // clearSelectedFile();
+    console.log('fileInput.value:', fileInputAssistantElement.value);
+    fileInputAssistantElement.value.click();
+};
+const assistantFilePicked = async (event) => {
+    const files = event.target.files;
+    console.log('files:', files);
+    console.log('fileInputImage.value:', fileInputAssistantElement.value);
+    // readFile(files[0], true);
+    fileAssistantList.value.push(files[0]);
+};
+const removeFile = (file) => {
+    const index = fileAssistantList.value.indexOf(file);
+    if (index > -1) {
+        fileAssistantList.value.splice(index, 1);
+    }
+};
+const readFile = async () => {
+    return Promise.all(fileAssistantList.value.map(async (fileAssistant) => {
+        return new Promise((resolve, reject) => {
+            const fileReader = new FileReader();
+            const fileName = fileAssistant.name;
+
+            fileReader.onload = () => {
+                const fileBody = fileReader.result;
+                resolve([fileBody, fileName]);
+            };
+            fileReader.onerror = (error) => {
+                reject(error);
+            };
+            fileReader.readAsDataURL(fileAssistant);
+        });
+    }));
+
+};
+const clearSelectedFile = () => {
+    fileAssistantList.value = [];
+};
+
 let articleDom = null;
 
 let unlisten_stream_chunk = null;
@@ -140,6 +186,12 @@ const refleshAssistants = () => {
         assistantList.value = JSON.parse(res);
         // titles.values = 
     });
+
+    invoke('reflesh_vectors').then(async res => {
+        console.log('reflesh_vector response.', res);
+        vectorList.value = JSON.parse(res);
+        // titles.values =
+    });
 };
 const loadContent = (id) => {
     invoke('load_messages', { id }).then(async res => {
@@ -160,6 +212,19 @@ const titleListSorted = computed(() => {
     });
 });
 //methods
+const unselectVector = (file) => {
+    const fileIndex = selectedVectorList.value.indexOf(file);
+    if (fileIndex >= 0) {
+        selectedVectorList.value.splice(fileIndex, 1);
+    }
+};
+
+const selectVector = (file) => {
+    if (selectedVectorList.value.indexOf(file) < 0) {
+        selectedVectorList.value.push(file)
+    }
+};
+
 const changeContent = (title) => {
     invoke('change_message', { id: title.id, name: title.name }).then(async res => {
         title.isEditing = false;
@@ -176,7 +241,19 @@ const deleteAssistant = (id) => {
 const clear_assistant = () => {
     window.location.reload();
 };
-const save_assistant = () => {
+const save_assistant = async () => {
+
+    //画像がアップされてたら取得する
+    let fileList = [];
+    if (fileAssistantList.value.length > 0) {
+        const assistFileList = await readFile();
+        for (const result of assistFileList) {
+            console.log('result.fileName: ', result.fileName);
+        }
+        fileList = assistFileList;
+        // data["filename"] = result.fileName;
+        // data["filebody"] = result.fileBody;
+    }
 
     //save model and chat data.
     invoke('make_assistant', {
@@ -184,6 +261,8 @@ const save_assistant = () => {
             message: message.value,
             assistant_name: assistant_name.value,
             instructions: instructions.value,
+            file_list: fileList,
+            vector_id_list: selectedVectorList.value.map((f) => f.id),
         })
     }).then(async res => {
         clear_search();
@@ -313,12 +392,44 @@ const search = () => {
                     <input type="text" v-model="timeoutSec" />
                 </div>
 
+                <div><button @click="assistantFilePick" style="padding: 5 px; margin-left: 5px;">参考ファイルUP</button>
+                    <input type="file" style="display: none" ref="fileInputAssistantElement"
+                        @change="assistantFilePicked" />
+                    <div v-for="(file, ind) in fileAssistantList" :key="'file_' + ind">{{ file.name }}, {{ ind }}<button
+                            @click="removeFile(file)">×</button></div>
+                </div>
+
                 <div>
                     <input type="text" v-model="assistant_name" placeholder="ギャル魔王" />
                 </div>
                 <div class="w-full">
                     <input type="text" class="w-full" v-model="instructions"
                         placeholder="あなたはギャルな魔王です。世界を支配する魔王として、ギャル語で質問に答えてください" />
+                </div>
+                <div>利用するVector</div>
+                <div v-for="vector in selectedVectorList" :key="'selected_vector_id_' + vector.id"
+                    style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+
+                    <div style="flex: glow; max-width: 800px; overflow:hidden;">
+                        <img src="./assets/chatgpt.png" style="width: 20px; height:20px;" />Th:
+                        {{ vector.name || vector.id }}
+                    </div>
+                    <div style="flex: 1">
+                        <button @click="unselectVector(vector)" class="button-sm">除外</button>
+                    </div>
+                </div>
+                <div class="mt-5">Vectorリスト</div>
+                <div v-for="vector in vectorList.filter((f) => selectedVectorList.indexOf(f) < 0)"
+                    :key="'vector_id_' + vector.id"
+                    style="display: flex; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+
+                    <div style="flex: glow; max-width: 800px; overflow:hidden;">
+                        <img src="./assets/chatgpt.png" style="width: 20px; height:20px;" />Th:
+                        {{ vector.name || vector.id }}
+                    </div>
+                    <div style="flex: 1">
+                        <button @click="selectVector(vector)" class="button-sm">選択</button>
+                    </div>
                 </div>
                 <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
                     style="height: 3rem; width: 80%;"></textarea>

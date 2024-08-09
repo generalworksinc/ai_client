@@ -1,6 +1,7 @@
 use crate::models::chat::ChatApiMessage;
 use crate::util::{self, create_client};
-use crate::{DIR_ASSISTANTS, DIR_THREADS, SAVING_DIRECTORY};
+use crate::{SAVING_DIRECTORY};
+use crate::constants::{DIR_ASSISTANTS, DIR_OPEN_AI_FILES, DIR_THREADS};
 use base64::prelude::*;
 use futures::StreamExt;
 use serde::Deserialize;
@@ -12,11 +13,11 @@ use tauri::Window;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        self, AssistantStreamEvent, CreateAssistantRequestArgs, CreateFileRequestArgs,
+        self, AssistantStreamEvent, CreateAssistantRequestArgs, CreateFileRequestArgs, MessageAttachment, MessageAttachmentTool,
         CreateImageRequestArgs, CreateMessageRequestArgs, CreateMessageRequestContent,
-        CreateRunRequestArgs, CreateThreadRequestArgs, FileInput, ImageFile, ImageInput, ImageUrl,
+        CreateRunRequestArgs, CreateThreadRequestArgs, FileInput, ImageFile, ImageInput, ImageUrl, AssistantToolsFileSearch,
         MessageContentInput, MessageDeltaContent, MessageRequestContentTextObject, MessageRole,
-        RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
+        RunObject, SubmitToolOutputsRunRequest, ToolsOutputs, OpenAIFile, ModifyAssistantRequest, AssistantToolFileSearchResources, 
     },
     Client,
 };
@@ -91,18 +92,25 @@ pub async fn make_assistant(
     params: String,
     timeout_sec: Option<u64>,
 ) -> Result<String, String> {
+
     #[derive(Deserialize)]
     struct PostData {
         // message: Option<String>,
         assistant_name: String,
         instructions: Option<String>,
+        file_list: Option<Vec<Vec<String>>>,
+        vector_id_list: Option<Vec<String>>,
     }
-    println!("call assistents_test: {:#?}", params);
+    // println!("call assistents_test: {:#?}", params);
     let postData = serde_json::from_str::<PostData>(params.as_str()).unwrap();
+    
+    
     match exec_make_assistant(
         &postData.assistant_name,
         // postData.message.unwrap_or_default().as_str(),
         postData.instructions.unwrap_or_default().as_str(),
+        postData.file_list,
+        postData.vector_id_list,
     )
     .await
     .map_err(|e| format!("{:?}", e))
@@ -112,33 +120,78 @@ pub async fn make_assistant(
     }
 }
 
-async fn exec_make_assistant(assistant_name: &str, instructions: &str) -> anyhow::Result<()> {
+async fn exec_make_assistant(assistant_name: &str, instructions: &str, 
+    file_list: Option<Vec<Vec<String>>>, vector_id_list: Option<Vec<String>>) -> anyhow::Result<()> {
+
     //create a client
     let client = create_client()?;
+
+    //ファイルがある場合は、ファイルをアップロードする
+    let mut file_id_list: Vec<OpenAIFile> = vec![];
+    if let Some(file_list) = file_list {
+        for file in file_list {
+            let file_name = file[1].clone();
+            let file_body = file[0].clone();
+            let file_binary: Vec<u8>;
+            //////////////////////////////////////////////////////////////////////////////////////////
+            if let Some((file_type, file_body)) = file_body.split_once("base64,") {
+                println!("file_type: {:?}", file_type);
+                file_binary = BASE64_STANDARD.decode(file_body)?;
+            } else {
+                return Err(anyhow::anyhow!("Invalid file format"));
+            }
+            println!("file_binary len: {:?}", file_binary.len());
+
+            let bytes = bytes::Bytes::from(file_binary);
+            let file_input = FileInput::from_bytes(file_name.to_string(), bytes);
+
+            let create_file_request = types::CreateFileRequestArgs::default()
+                .file(file_input)
+                .build()?;
+            let create_file = client.files().create(create_file_request).await?;
+            file_id_list.push(create_file);
+        }
+    }
 
     //create the assistant
     let assistant_request = CreateAssistantRequestArgs::default()
         .name(assistant_name)
         .instructions(instructions)
         .model("gpt-4o-mini")
+        .tools(vec![AssistantToolsFileSearch::default().into()])
         .build()?;
-    let assistant_object = client.assistants().create(assistant_request).await?;
 
+    let mut assistant_object = client.assistants().create(assistant_request).await?;
+
+    //vector_id_listがある場合は、vectorをassistantに追加する
+    println!("vector_id_list: {:?}", vector_id_list);
+    match vector_id_list {
+        Some(vector_id_list) if vector_id_list.len() > 0 => {
+            println!("set vector_ids! ");
+            assistant_object = client
+            .assistants()
+            .update(
+                &assistant_object.id,
+                ModifyAssistantRequest {
+                    tool_resources: Some(
+                        AssistantToolFileSearchResources {
+                            vector_store_ids: vector_id_list,
+                        }
+                        .into(),
+                    ),
+                    ..Default::default()
+                },
+            )
+            .await?;
+        }
+        _ => {
+            //
+        }
+    }
     // client.assistants().delete(assistant_id).await?;
 
-    //データをローカルに保存する
+    //Assistantをローカルに保存する
     let dir = unsafe { SAVING_DIRECTORY.clone() };
-
-    // if file_path_conversation.exists() {
-    //     //削除
-    //     std::fs::remove_file(file_path_conversation).map_err(|x| x.to_string())?;
-    // }
-    // if file_path_title.exists() {
-    //     //削除
-    //     std::fs::remove_file(file_path_title).map_err(|x| x.to_string())?;
-    // }
-
-    // write_id and conversasion.
     let assistants_dir_path = std::path::Path::new(dir.as_str()).join(DIR_ASSISTANTS);
 
     if !assistants_dir_path.exists() {
@@ -149,6 +202,24 @@ async fn exec_make_assistant(assistant_name: &str, instructions: &str) -> anyhow
     let json_data = serde_json::to_string(&assistant_object)?;
     f.write_all(json_data.as_bytes())?;
 
+
+    //アップしたファイル情報をローカルに保存する
+    let files_dir_path = std::path::Path::new(dir.as_str()).join(DIR_OPEN_AI_FILES);
+
+    if !files_dir_path.exists() {
+        std::fs::create_dir_all(files_dir_path.as_path())?;
+    }
+
+    //ファイルがある場合は、ファイルを削除する
+    for open_ai_file in file_id_list {
+        let file_path = files_dir_path.join(open_ai_file.id.clone());
+        let mut f = File::create(file_path).unwrap();
+        let json_data = serde_json::to_string(&open_ai_file)?;
+        f.write_all(json_data.as_bytes())?;
+
+        // println!("delete file: {:?}", open_ai_file.id);
+        // client.files().delete(open_ai_file.id.as_str()).await?;
+    }
     // client.assistants().delete(&assistant_object.id).await?;
     Ok(())
 }
@@ -315,10 +386,25 @@ async fn exec_make_new_thread(
                 .await?;
         }
 
-        let message = CreateMessageRequestArgs::default()
-            .role(MessageRole::User)
-            .content(content.clone())
-            .build()?;
+        let message = 
+            match assistant.tool_resources.clone().and_then(|x| x.file_search) {
+                Some(file_search) if file_search.vector_store_ids.len() > 0 => {
+                    println!("file_search: {:?}", file_search.vector_store_ids);
+                    CreateMessageRequestArgs::default()
+                .role(MessageRole::User)
+                .content(content.clone())
+                // .attachments(vec![MessageAttachment {
+                //     file_id: "file-ElLGY0CKqOPjmFTzjrFaDbiu".into(),
+                //     tools: vec![MessageAttachmentTool::FileSearch],
+                // }])
+                .build().unwrap()
+                }
+                _ => {
+                    CreateMessageRequestArgs::default()
+                .role(MessageRole::User)
+                .content(content.clone()).build().unwrap()
+                }
+            };
         //attach message to the thread
         let _message_obj = client
             .threads()

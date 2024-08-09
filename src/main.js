@@ -4,6 +4,7 @@ import App from "./App.vue";
 import Main from "./Main.vue";
 import Settings from "./Settings.vue";
 import Assistants from "./Assistants.vue";
+import OpenAIFiles from "./OpenAIFiles.vue";
 import Samples from "./Samples.vue";
 
 // add
@@ -12,6 +13,7 @@ const routes = [
 	{ path: "/", component: Main },
 	{ path: "/settings", component: Settings },
 	{ path: "/assistants", component: Assistants },
+	{ path: "/open_ai_files", component: OpenAIFiles },
 	{ path: "/samples", component: Samples },
 ];
 

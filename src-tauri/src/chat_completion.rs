@@ -1,6 +1,8 @@
 use crate::models::chat::ChatApiMessage;
 use crate::util::{self, create_client};
-use crate::{DIR_ASSISTANTS, SAVING_DIRECTORY};
+use crate::{SAVING_DIRECTORY};
+use crate::constants::DIR_ASSISTANTS;
+
 use base64::prelude::*;
 use futures::StreamExt;
 use serde::Deserialize;

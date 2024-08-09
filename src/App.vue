@@ -25,6 +25,9 @@ onMounted(async () => {
   const unlisten_open_assistants = await listen('open_assistants', (event) => {
     router.push("/assistants");
   });
+  const unlisten_open_ai_files = await listen('open_open_ai_files', (event) => {
+    router.push("/open_ai_files");
+  });
   const unlisten_open_samples = await listen('open_samples', (event) => {
     router.push("/samples");
   });
