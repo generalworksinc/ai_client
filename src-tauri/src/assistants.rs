@@ -498,6 +498,7 @@ async fn exec_make_new_thread(
                         "messageCompleted. RunId {:?}: {:?}",
                         messageCompleted.content, messageCompleted.attachments
                     );
+                    println!("all data: {:?}", messageCompleted.metadata);
                     // match content {
                     //     MessageDeltaContent::Text(text) => {
                     //         if let Some(text) = text.text {
@@ -540,15 +541,18 @@ async fn exec_make_new_thread(
                         "StepCompleted. RunId {:?}: {:?}",
                         runStepComplete.id, runStepComplete.completed_at
                     );
+                    println!("all data: {:?}", runStepComplete.metadata);
                 }
                 AssistantStreamEvent::ThreadRunCompleted(run) => {
                     println!("RunCompleted. RunId {:?}: {:?}", run.id, run.completed_at);
+                    println!("all data: {:?}", run.metadata);
                 }
                 // AssistantStreamEvent::ThreadRunStepExpired(delta) => {
                 //     eprintln!("StepExpired. RunId {:?}: {:?}", delta.id, delta.expired_at);
                 //     window.emit("timeout_stream", message_id).unwrap();
                 // }
                 AssistantStreamEvent::ThreadMessageIncomplete(delta) => {
+                    println!("finish cheunk: {:?}", delta);
                     window
                         .emit(
                             "finish_chunks",
