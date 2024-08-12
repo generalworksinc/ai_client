@@ -1,6 +1,6 @@
 use crate::constants::{DIR_ASSISTANTS, DIR_OPEN_AI_FILES, DIR_THREADS};
 use crate::models::chat::ChatApiMessage;
-use crate::util::{self, create_client};
+use crate::util::{create_client};
 use crate::SAVING_DIRECTORY;
 use base64::prelude::*;
 use futures::StreamExt;
@@ -14,11 +14,9 @@ use async_openai::{
     config::OpenAIConfig,
     types::{
         self, AssistantStreamEvent, AssistantToolFileSearchResources, AssistantToolsFileSearch,
-        CreateAssistantRequestArgs, CreateFileRequestArgs, CreateImageRequestArgs,
+        CreateAssistantRequestArgs,
         CreateMessageRequestArgs, CreateMessageRequestContent, CreateRunRequestArgs,
-        CreateThreadRequestArgs, FileInput, ImageFile, ImageInput, ImageUrl, MessageAttachment,
-        MessageAttachmentTool, MessageContentInput, MessageDeltaContent,
-        MessageRequestContentTextObject, MessageRole, ModifyAssistantRequest, OpenAIFile,
+        CreateThreadRequestArgs, FileInput, ImageFile, MessageContentInput, MessageDeltaContent, MessageRole, ModifyAssistantRequest, OpenAIFile,
         RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
     },
     Client,
@@ -169,7 +167,7 @@ async fn exec_make_assistant(
     //vector_id_listがある場合は、vectorをassistantに追加する
     println!("vector_id_list: {:?}", vector_id_list);
     match vector_id_list {
-        Some(vector_id_list) if vector_id_list.len() > 0 => {
+        Some(vector_id_list) if !vector_id_list.is_empty() => {
             println!("set vector_ids! ");
             assistant_object = client
                 .assistants()
@@ -389,7 +387,7 @@ async fn exec_make_new_thread(
         }
 
         let message = match assistant.tool_resources.clone().and_then(|x| x.file_search) {
-            Some(file_search) if file_search.vector_store_ids.len() > 0 => {
+            Some(file_search) if !file_search.vector_store_ids.is_empty() => {
                 println!("file_search: {:?}", file_search.vector_store_ids);
                 CreateMessageRequestArgs::default()
                     .role(MessageRole::User)

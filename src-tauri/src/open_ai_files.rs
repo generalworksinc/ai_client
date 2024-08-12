@@ -1,31 +1,19 @@
-use crate::constants::{DIR_ASSISTANTS, DIR_OPEN_AI_FILES, DIR_OPEN_AI_VECTORS, DIR_THREADS};
-use crate::models::chat::ChatApiMessage;
+use crate::constants::{DIR_OPEN_AI_FILES, DIR_OPEN_AI_VECTORS};
 use crate::models::open_ai::{OpenAIFileData, OpenAIVectorData};
 use crate::util::{self, create_client};
 use crate::SAVING_DIRECTORY;
 use anyhow::Context;
-use base64::prelude::*;
-use chrono::{Local, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 use futures::StreamExt;
 use serde::Deserialize;
-use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
 use std::str::FromStr;
 use tauri::Window;
 
-use async_openai::{
-    config::OpenAIConfig,
-    types::{
-        self, AssistantStreamEvent, CreateAssistantRequestArgs, CreateFileRequestArgs,
-        CreateImageRequestArgs, CreateMessageRequestArgs, CreateMessageRequestContent,
-        CreateRunRequestArgs, CreateThreadRequestArgs, CreateVectorStoreRequest, FileInput,
-        ImageFile, ImageInput, ImageUrl, MessageContentInput, MessageDeltaContent,
-        MessageRequestContentTextObject, MessageRole, OpenAIFile, RunObject,
-        SubmitToolOutputsRunRequest, ToolsOutputs,
-    },
-    Client,
-};
+use async_openai::types::{
+        self, CreateVectorStoreRequest, FileInput, OpenAIFile,
+    };
 
 #[tauri::command]
 pub async fn reflesh_vectors(app_handle: tauri::AppHandle) -> Result<String, String> {

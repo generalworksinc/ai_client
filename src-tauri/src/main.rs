@@ -19,8 +19,7 @@ mod models;
 mod open_ai_files;
 mod util;
 
-use anyhow::Context;
-use constants::{DIR_CONVERSATION, DIR_OPEN_AI_FILES, DIR_THREADS};
+use constants::{DIR_CONVERSATION, DIR_THREADS};
 use futures::future;
 use futures::stream::StreamExt;
 use models::chat::ChatApiMessage;
@@ -35,7 +34,7 @@ use tauri::{CustomMenuItem, Menu, Submenu};
 use rand::prelude::*;
 use util::create_client;
 
-use chrono::{Local, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 use once_cell::sync::OnceCell;
 use reqwest::header;
 use serde::{Deserialize, Serialize};

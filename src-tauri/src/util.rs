@@ -1,12 +1,11 @@
 use std::{
     fs::File,
-    path::{self, Path},
+    path::{Path},
 };
 
 use crate::API_KEY;
 use anyhow::Result;
 use async_openai::{config::OpenAIConfig, Client};
-use base64::alphabet::Alphabet;
 use base64::prelude::*;
 use std::io::prelude::*;
 
@@ -53,7 +52,7 @@ pub fn get_file_base64(file_path: &Path) -> Result<String> {
     file.read_to_end(&mut buffer)?;
 
     // MIMEタイプを取得
-    let mime_type = mime_guess::from_path(&file_path).first_or_octet_stream();
+    let mime_type = mime_guess::from_path(file_path).first_or_octet_stream();
 
     // Base64エンコード
     let base64_data = BASE64_STANDARD.encode(&buffer);

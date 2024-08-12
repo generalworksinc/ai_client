@@ -1,7 +1,6 @@
 use crate::constants::OPENAI_MAXIMUM_CONTENT_SIZE_BYTES;
 use crate::util;
 use anyhow::Context;
-use base64::prelude::*;
 use core::str;
 use serde_json::json;
 use std::process::Command;

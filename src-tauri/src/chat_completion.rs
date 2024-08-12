@@ -1,31 +1,16 @@
-use crate::constants::DIR_ASSISTANTS;
 use crate::models::chat::ChatApiMessage;
-use crate::util::{self, create_client};
-use crate::SAVING_DIRECTORY;
+use crate::util::{create_client};
 
-use base64::prelude::*;
 use futures::StreamExt;
 use serde::Deserialize;
-use serde_json::Value;
-use std::fs::File;
-use std::io::prelude::*;
 use tauri::Window;
 
-use async_openai::{
-    config::OpenAIConfig,
-    types::{
-        self, AssistantStreamEvent, ChatCompletionRequestMessage,
+use async_openai::types::{
         ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImageArgs,
         ChatCompletionRequestMessageContentPartTextArgs, ChatCompletionRequestUserMessageArgs,
-        ChatCompletionRequestUserMessageContent, CreateAssistantRequestArgs,
-        CreateChatCompletionRequestArgs, CreateFileRequestArgs, CreateImageRequestArgs,
-        CreateMessageRequestArgs, CreateMessageRequestContent, CreateRunRequestArgs,
-        CreateThreadRequestArgs, FileInput, ImageDetail, ImageFile, ImageInput, ImageUrl,
-        ImageUrlArgs, MessageContentInput, MessageDeltaContent, MessageRequestContentTextObject,
-        MessageRole, RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
-    },
-    Client,
-};
+        CreateChatCompletionRequestArgs, ImageDetail,
+        ImageUrlArgs,
+    };
 
 #[tauri::command]
 pub async fn start_chat(
@@ -89,7 +74,7 @@ async fn exec_chat(
     //create the assistant
     let content_list: Vec<String> = messages.iter().map(|x| x.content.clone()).collect();
 
-    let mut image_file_id = "".to_string();
+    let image_file_id = "".to_string();
     let mut message_vec: Vec<ChatCompletionRequestMessageContentPart> = vec![];
 
     for content in content_list.iter() {
@@ -203,7 +188,7 @@ async fn exec_chat(
                                 .emit(
                                     "stream_chunk",
                                     serde_json::json!({
-                                        "messageId": message_id.clone(),
+                                        "messageId": message_id,
                                         "response": response_string.clone(),
                                         "responseHtml": markdown::to_html(&response_string)
                                     }),
@@ -237,7 +222,7 @@ async fn exec_chat(
             .emit(
                 "finish_chunks",
                 serde_json::json!({
-                    "messageId": message_id.clone(),
+                    "messageId": message_id,
                     "response": response_string.clone(),
                     // "responseHtml":  markdown::to_html(&response_string)
                     "responseHtml":  markdown::to_html(&response_string)

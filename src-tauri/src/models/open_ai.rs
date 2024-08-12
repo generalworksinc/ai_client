@@ -1,4 +1,3 @@
-use crate::ChatApiMessageWithHtml;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, Default)]
