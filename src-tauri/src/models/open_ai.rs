@@ -1,10 +1,10 @@
+use crate::ChatApiMessageWithHtml;
 use serde::{Deserialize, Serialize};
-use crate:: ChatApiMessageWithHtml;
 
 #[derive(Deserialize, Serialize, Default)]
 pub struct OpenAIFileData {
     pub id: Option<String>,
-    pub filename: Option<String>, 
+    pub filename: Option<String>,
     pub purpose: Option<String>,
     pub bytes: Option<i64>,
     pub time: Option<String>,
@@ -13,7 +13,7 @@ pub struct OpenAIFileData {
 #[derive(Deserialize, Serialize, Default)]
 pub struct OpenAIVectorData {
     pub id: Option<String>,
-    pub name: Option<String>, 
+    pub name: Option<String>,
     // pub purpose: Option<String>,
     pub usage_bytes: Option<i64>,
     pub created: Option<i64>,

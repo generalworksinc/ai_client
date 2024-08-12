@@ -1,7 +1,7 @@
+use crate::constants::DIR_ASSISTANTS;
 use crate::models::chat::ChatApiMessage;
 use crate::util::{self, create_client};
-use crate::{SAVING_DIRECTORY};
-use crate::constants::DIR_ASSISTANTS;
+use crate::SAVING_DIRECTORY;
 
 use base64::prelude::*;
 use futures::StreamExt;
@@ -14,19 +14,18 @@ use tauri::Window;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        self, AssistantStreamEvent, CreateAssistantRequestArgs, CreateFileRequestArgs,
-        CreateImageRequestArgs, CreateMessageRequestArgs, CreateMessageRequestContent,
-        CreateRunRequestArgs, CreateThreadRequestArgs, FileInput, ImageFile, ImageInput, ImageUrl,
-        MessageContentInput, MessageDeltaContent, MessageRequestContentTextObject, MessageRole,
-        RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
-        ChatCompletionRequestMessageContentPartImageArgs, ChatCompletionRequestUserMessageContent,
-        ChatCompletionRequestMessageContentPartTextArgs, ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
-        CreateChatCompletionRequestArgs, ImageDetail, ImageUrlArgs,ChatCompletionRequestMessageContentPart,
+        self, AssistantStreamEvent, ChatCompletionRequestMessage,
+        ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImageArgs,
+        ChatCompletionRequestMessageContentPartTextArgs, ChatCompletionRequestUserMessageArgs,
+        ChatCompletionRequestUserMessageContent, CreateAssistantRequestArgs,
+        CreateChatCompletionRequestArgs, CreateFileRequestArgs, CreateImageRequestArgs,
+        CreateMessageRequestArgs, CreateMessageRequestContent, CreateRunRequestArgs,
+        CreateThreadRequestArgs, FileInput, ImageDetail, ImageFile, ImageInput, ImageUrl,
+        ImageUrlArgs, MessageContentInput, MessageDeltaContent, MessageRequestContentTextObject,
+        MessageRole, RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
     },
     Client,
 };
-
-
 
 #[tauri::command]
 pub async fn start_chat(
@@ -53,7 +52,10 @@ pub async fn start_chat(
     println!("post_data:{:?}", &post_data);
     match exec_chat(
         window,
-        post_data.model.unwrap_or("gpt-4o-mini".to_string()).as_str(),
+        post_data
+            .model
+            .unwrap_or("gpt-4o-mini".to_string())
+            .as_str(),
         post_data.messages,
         post_data.temperature.unwrap_or(1.0),
         post_data.max_tokens.unwrap_or(1024),
@@ -70,7 +72,17 @@ pub async fn start_chat(
     }
 }
 
-async fn exec_chat(window: Window, model: &str, messages: Vec<ChatApiMessage>, temperature: f32, max_tokens: u32, image_url: Option<String>, file_name: &str, file_body: &str, message_id: &str) -> anyhow::Result<()> {
+async fn exec_chat(
+    window: Window,
+    model: &str,
+    messages: Vec<ChatApiMessage>,
+    temperature: f32,
+    max_tokens: u32,
+    image_url: Option<String>,
+    file_name: &str,
+    file_body: &str,
+    message_id: &str,
+) -> anyhow::Result<()> {
     //create a client
     let client = create_client()?;
 
@@ -89,13 +101,17 @@ async fn exec_chat(window: Window, model: &str, messages: Vec<ChatApiMessage>, t
             //     image_url: image_url_build,
             // });
             // let image_url_message: ChatCompletionRequestMessage = ;
-            message_vec.push(ChatCompletionRequestMessageContentPartImageArgs::default()
-            .image_url(
-                ImageUrlArgs::default()
-                    .url(image_url.as_str())
-                    .detail(ImageDetail::Auto)
-                    .build()?,
-            ).build()?.into());
+            message_vec.push(
+                ChatCompletionRequestMessageContentPartImageArgs::default()
+                    .image_url(
+                        ImageUrlArgs::default()
+                            .url(image_url.as_str())
+                            .detail(ImageDetail::Auto)
+                            .build()?,
+                    )
+                    .build()?
+                    .into(),
+            );
             // let content_vec: Vec<MessageContentInput> = vec![image_url];
             // let image_url_message = CreateMessageRequestArgs::default()
             //     .role(MessageRole::User)
@@ -118,100 +134,118 @@ async fn exec_chat(window: Window, model: &str, messages: Vec<ChatApiMessage>, t
             // }
             // let base64_data_url = format!("data:image/jpeg;{}", file_body);
 
-            
-            message_vec.push(ChatCompletionRequestMessageContentPartImageArgs::default()
-            .image_url(
-                ImageUrlArgs::default()
-                    .url(file_body)
-                    .detail(ImageDetail::Auto)
-                    .build()?,
-            ).build()?.into());
+            message_vec.push(
+                ChatCompletionRequestMessageContentPartImageArgs::default()
+                    .image_url(
+                        ImageUrlArgs::default()
+                            .url(file_body)
+                            .detail(ImageDetail::Auto)
+                            .build()?,
+                    )
+                    .build()?
+                    .into(),
+            );
         }
 
-        message_vec.push(ChatCompletionRequestMessageContentPartTextArgs::default()
-        .text(content.as_str())
-        .build()?.into());
-            // ChatCompletionRequestUserMessageArgs::default()
-            // .content(message)
-            // .build()?
-            // .into()
+        message_vec.push(
+            ChatCompletionRequestMessageContentPartTextArgs::default()
+                .text(content.as_str())
+                .build()?
+                .into(),
+        );
+        // ChatCompletionRequestUserMessageArgs::default()
+        // .content(message)
+        // .build()?
+        // .into()
     }
-    
-// let m = [ChatCompletionRequestUserMessageArgs::default()
-//         .content("message")
-//         .build()?
-//         .into()];
+
+    // let m = [ChatCompletionRequestUserMessageArgs::default()
+    //         .content("message")
+    //         .build()?
+    //         .into()];
     let request = CreateChatCompletionRequestArgs::default()
-    .model(model)
-    .max_tokens(max_tokens)
-    .temperature(temperature)
-    .stream(true)
-    .messages([
-        ChatCompletionRequestUserMessageArgs::default().content(message_vec).build()?.into()
-    ])
-    .build()?;
+        .model(model)
+        .max_tokens(max_tokens)
+        .temperature(temperature)
+        .stream(true)
+        .messages([ChatCompletionRequestUserMessageArgs::default()
+            .content(message_vec)
+            .build()?
+            .into()])
+        .build()?;
 
     let mut stream = client.chat().create_stream(request).await?;
 
     // let task =
     // tokio::spawn(async move {
-        // let start_time = chrono::Utc::now();
-        let mut prev_time = chrono::Utc::now();
-        let mut response_string = String::new();
-        let mut finish_with_error = false;
-        while let Some(result) = stream.next().await {
-            match result {
-                Ok(response) => {
-                    response.choices.iter().for_each(|chat_choice| {
-                        if let Some(ref content) = chat_choice.delta.content {
-                            // write!(lock, "{}", content).unwrap();
-                            // let message = ChatApiMessage {
-                            //     role: "assistant".to_string(),
-                            //     content: content.to_string(),
-                            // };
-                            print!("{} ", content);
-                            let now = chrono::Utc::now();
-                            let duration = now - prev_time;
-                            response_string.push_str(content.as_str());
+    // let start_time = chrono::Utc::now();
+    let mut prev_time = chrono::Utc::now();
+    let mut response_string = String::new();
+    let mut finish_with_error = false;
+    while let Some(result) = stream.next().await {
+        match result {
+            Ok(response) => {
+                response.choices.iter().for_each(|chat_choice| {
+                    if let Some(ref content) = chat_choice.delta.content {
+                        // write!(lock, "{}", content).unwrap();
+                        // let message = ChatApiMessage {
+                        //     role: "assistant".to_string(),
+                        //     content: content.to_string(),
+                        // };
+                        print!("{} ", content);
+                        let now = chrono::Utc::now();
+                        let duration = now - prev_time;
+                        response_string.push_str(content.as_str());
 
-                            if duration.gt(&chrono::Duration::milliseconds(200)) {
-                                prev_time = now;
-                                window.emit("stream_chunk", serde_json::json!({
-                                "messageId": message_id.clone(), 
-                                "response": response_string.clone(), 
-                                "responseHtml": markdown::to_html(&response_string)
-                            }))
-                            .unwrap();
-                            }
-
+                        if duration.gt(&chrono::Duration::milliseconds(200)) {
+                            prev_time = now;
+                            window
+                                .emit(
+                                    "stream_chunk",
+                                    serde_json::json!({
+                                        "messageId": message_id.clone(),
+                                        "response": response_string.clone(),
+                                        "responseHtml": markdown::to_html(&response_string)
+                                    }),
+                                )
+                                .unwrap();
                         }
-                    });
-                }
-                Err(err) => {
-                    window.emit("stream_error", serde_json::json!({
-                        "type": "OpenAIError",
-                        "message": format!("{:?}", err)
-                    })).unwrap();
-                    finish_with_error = true;
-                }
+                    }
+                });
+            }
+            Err(err) => {
+                window
+                    .emit(
+                        "stream_error",
+                        serde_json::json!({
+                            "type": "OpenAIError",
+                            "message": format!("{:?}", err)
+                        }),
+                    )
+                    .unwrap();
+                finish_with_error = true;
             }
         }
-    
+    }
+
     // println!(
     //     "finish... markdown::to_html(&response_string):{:?}",
     //     markdown::to_html(&response_string)
     // );
     if !finish_with_error {
         window
-        .emit("finish_chunks", serde_json::json!({
-            "messageId": message_id.clone(), 
-            "response": response_string.clone(), 
-            // "responseHtml":  markdown::to_html(&response_string)
-            "responseHtml":  markdown::to_html(&response_string)
-        }))
-        .unwrap();
+            .emit(
+                "finish_chunks",
+                serde_json::json!({
+                    "messageId": message_id.clone(),
+                    "response": response_string.clone(),
+                    // "responseHtml":  markdown::to_html(&response_string)
+                    "responseHtml":  markdown::to_html(&response_string)
+                }),
+            )
+            .unwrap();
     }
-    
+
     // });
     Ok(())
 }

@@ -1,5 +1,5 @@
+use crate::ChatApiMessageWithHtml;
 use serde::{Deserialize, Serialize};
-use crate:: ChatApiMessageWithHtml;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ChatApiMessage {

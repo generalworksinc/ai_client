@@ -1,35 +1,34 @@
-use crate::models::chat::ChatApiMessage;
-use crate::util::{self, create_client};
 use crate::constants::{DIR_ASSISTANTS, DIR_OPEN_AI_FILES, DIR_OPEN_AI_VECTORS, DIR_THREADS};
-use crate::SAVING_DIRECTORY;
+use crate::models::chat::ChatApiMessage;
 use crate::models::open_ai::{OpenAIFileData, OpenAIVectorData};
+use crate::util::{self, create_client};
+use crate::SAVING_DIRECTORY;
+use anyhow::Context;
 use base64::prelude::*;
+use chrono::{Local, TimeZone, Utc};
 use futures::StreamExt;
 use serde::Deserialize;
-use chrono::{TimeZone, Utc, Local};
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
 use std::str::FromStr;
 use tauri::Window;
-use anyhow::Context;
 
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        self, AssistantStreamEvent, CreateAssistantRequestArgs, CreateFileRequestArgs, CreateVectorStoreRequest,
+        self, AssistantStreamEvent, CreateAssistantRequestArgs, CreateFileRequestArgs,
         CreateImageRequestArgs, CreateMessageRequestArgs, CreateMessageRequestContent,
-        CreateRunRequestArgs, CreateThreadRequestArgs, FileInput, ImageFile, ImageInput, ImageUrl,
-        MessageContentInput, MessageDeltaContent, MessageRequestContentTextObject, MessageRole,
-        RunObject, SubmitToolOutputsRunRequest, ToolsOutputs, OpenAIFile
+        CreateRunRequestArgs, CreateThreadRequestArgs, CreateVectorStoreRequest, FileInput,
+        ImageFile, ImageInput, ImageUrl, MessageContentInput, MessageDeltaContent,
+        MessageRequestContentTextObject, MessageRole, OpenAIFile, RunObject,
+        SubmitToolOutputsRunRequest, ToolsOutputs,
     },
     Client,
 };
 
-
 #[tauri::command]
 pub async fn reflesh_vectors(app_handle: tauri::AppHandle) -> Result<String, String> {
-    
     let dir = unsafe { SAVING_DIRECTORY.clone() };
     let vector_path = std::path::Path::new(dir.as_str()).join(DIR_OPEN_AI_VECTORS);
     if vector_path.exists() {
@@ -48,15 +47,25 @@ pub async fn reflesh_vectors(app_handle: tauri::AppHandle) -> Result<String, Str
                                 .as_nanos() as i64,
                         );
 
-                        let vector_file_string = std::fs::read_to_string(entry.path()).map_err(|x| x.to_string()).unwrap();
-                        let mut vectorData: OpenAIVectorData = if vector_file_string.is_empty() { OpenAIVectorData::default() } else { serde_json::from_str(vector_file_string.as_str()).unwrap()};
-                        
-                        if vectorData.created.is_none() {
-                            vectorData.time = Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string());
+                        let vector_file_string = std::fs::read_to_string(entry.path())
+                            .map_err(|x| x.to_string())
+                            .unwrap();
+                        let mut vectorData: OpenAIVectorData = if vector_file_string.is_empty() {
+                            OpenAIVectorData::default()
                         } else {
-                            chrono::Utc.timestamp_millis_opt(vectorData.created.unwrap()*1000).map(|x| {
-                                vectorData.time = Some(x.format("%Y-%m-%d %H:%M:%S").to_string());
-                            });
+                            serde_json::from_str(vector_file_string.as_str()).unwrap()
+                        };
+
+                        if vectorData.created.is_none() {
+                            vectorData.time =
+                                Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string());
+                        } else {
+                            chrono::Utc
+                                .timestamp_millis_opt(vectorData.created.unwrap() * 1000)
+                                .map(|x| {
+                                    vectorData.time =
+                                        Some(x.format("%Y-%m-%d %H:%M:%S").to_string());
+                                });
                         }
 
                         if vectorData.id.is_none() {
@@ -100,12 +109,20 @@ pub async fn reflesh_openai_files(app_handle: tauri::AppHandle) -> Result<String
                                 .as_nanos() as i64,
                         );
 
-                        let openai_file_string = std::fs::read_to_string(entry.path()).map_err(|x| x.to_string()).unwrap();
-                        let mut openAIFileData: OpenAIFileData = if openai_file_string.is_empty() { OpenAIFileData::default() } else { serde_json::from_str(openai_file_string.as_str()).unwrap()};
-                        openAIFileData.time = Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string());
-                        
+                        let openai_file_string = std::fs::read_to_string(entry.path())
+                            .map_err(|x| x.to_string())
+                            .unwrap();
+                        let mut openAIFileData: OpenAIFileData = if openai_file_string.is_empty() {
+                            OpenAIFileData::default()
+                        } else {
+                            serde_json::from_str(openai_file_string.as_str()).unwrap()
+                        };
+                        openAIFileData.time =
+                            Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string());
+
                         if openAIFileData.id.is_none() {
-                            openAIFileData.id = Some(entry.file_name().to_string_lossy().to_string());
+                            openAIFileData.id =
+                                Some(entry.file_name().to_string_lossy().to_string());
                         }
                         Some(openAIFileData)
                     } else {
@@ -118,7 +135,6 @@ pub async fn reflesh_openai_files(app_handle: tauri::AppHandle) -> Result<String
     }
     Err("".to_string())
 }
-
 
 #[tauri::command]
 pub async fn make_vector(
@@ -138,8 +154,7 @@ pub async fn make_vector(
     }
     // println!("call assistents_test: {:#?}", params);
     let post_data = serde_json::from_str::<PostData>(params.as_str()).unwrap();
-    
-    
+
     match exec_make_vector(
         // &post_data.assistant_name,
         // // postData.message.unwrap_or_default().as_str(),
@@ -155,7 +170,10 @@ pub async fn make_vector(
     }
 }
 
-async fn exec_make_vector(vector_name: &str, open_ai_file_id_list:  Vec<String>) -> anyhow::Result<()> {
+async fn exec_make_vector(
+    vector_name: &str,
+    open_ai_file_id_list: Vec<String>,
+) -> anyhow::Result<()> {
     //create a client
     let client = create_client()?;
     println!("open_ai_file_id_list: {:#?}", open_ai_file_id_list);
@@ -168,7 +186,6 @@ async fn exec_make_vector(vector_name: &str, open_ai_file_id_list:  Vec<String>)
             ..Default::default()
         })
         .await?;
-    
 
     //作成したvector情報をローカルに保存する
     let dir = unsafe { SAVING_DIRECTORY.clone() };
@@ -194,7 +211,6 @@ pub async fn upload_files(
     params: String,
     timeout_sec: Option<u64>,
 ) -> Result<String, String> {
-
     #[derive(Deserialize)]
     struct PostData {
         // message: Option<String>,
@@ -204,8 +220,7 @@ pub async fn upload_files(
     }
     // println!("call assistents_test: {:#?}", params);
     let post_data = serde_json::from_str::<PostData>(params.as_str()).unwrap();
-    
-    
+
     match exec_upload_files(
         // &post_data.assistant_name,
         // // postData.message.unwrap_or_default().as_str(),
@@ -220,7 +235,6 @@ pub async fn upload_files(
     }
 }
 
-
 async fn exec_upload_files(file_path_list: Option<Vec<String>>) -> anyhow::Result<()> {
     //create a client
     let client = create_client()?;
@@ -228,9 +242,15 @@ async fn exec_upload_files(file_path_list: Option<Vec<String>>) -> anyhow::Resul
     //ファイルがある場合は、ファイルをアップロードする
     let mut file_id_list: Vec<OpenAIFile> = vec![];
     if let Some(file_path_list) = file_path_list {
-        for file_path in file_path_list.iter().filter_map(|x| std::path::PathBuf::from_str(x.as_str()).ok()) {
+        for file_path in file_path_list
+            .iter()
+            .filter_map(|x| std::path::PathBuf::from_str(x.as_str()).ok())
+        {
             //filepathから、ファイル名をbinaryを取得
-            let file_name = file_path.file_name().context("Invalid file path")?.to_string_lossy();
+            let file_name = file_path
+                .file_name()
+                .context("Invalid file path")?
+                .to_string_lossy();
             let file_binary = util::get_file_binary(file_path.as_path())?;
             //////////////////////////////////////////////////////////////////////////////////////////
             let file_input = FileInput::from_vec_u8(file_name.to_string(), file_binary);
@@ -292,12 +312,15 @@ pub async fn delete_vector(app_handle: tauri::AppHandle, id: String) -> Result<S
         //削除
         std::fs::remove_file(file_path_open_ai_file).map_err(|x| x.to_string())?;
     }
-    
+
     Ok("ファイルID削除しました".to_string())
 }
 
 #[tauri::command]
-pub async fn delete_openai_file(app_handle: tauri::AppHandle, id: String) -> Result<String, String> {
+pub async fn delete_openai_file(
+    app_handle: tauri::AppHandle,
+    id: String,
+) -> Result<String, String> {
     //OpenAIFileを削除
     println!("openai_file_id: {:#?}", id);
     let client = create_client().map_err(|err| err.to_string())?;
@@ -325,6 +348,6 @@ pub async fn delete_openai_file(app_handle: tauri::AppHandle, id: String) -> Res
         //削除
         std::fs::remove_file(file_path_open_ai_file).map_err(|x| x.to_string())?;
     }
-    
+
     Ok("ファイルID削除しました".to_string())
 }

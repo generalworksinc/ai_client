@@ -1,12 +1,12 @@
-use crate::util;
-use base64::prelude::*;
-use serde_json::json;
-use tauri::Window;
-use core::str;
-use std::str::FromStr;
-use anyhow::Context;
 use crate::constants::OPENAI_MAXIMUM_CONTENT_SIZE_BYTES;
+use crate::util;
+use anyhow::Context;
+use base64::prelude::*;
+use core::str;
+use serde_json::json;
 use std::process::Command;
+use std::str::FromStr;
+use tauri::Window;
 use tempfile::tempdir;
 
 use async_openai::types::{
@@ -32,20 +32,18 @@ pub async fn audio_transcribe(
     }
 }
 
-async fn audio_transcribe_exec(
-    file_path: &str,
-) -> anyhow::Result<serde_json::Value> {
+async fn audio_transcribe_exec(file_path: &str) -> anyhow::Result<serde_json::Value> {
     // transcribe_json().await?;
     transcribe_verbose_json(file_path).await
 }
 
-async fn transcribe_verbose_json(
-    file_path_str: &str,
-) -> Result<serde_json::Value, anyhow::Error> {
-    
+async fn transcribe_verbose_json(file_path_str: &str) -> Result<serde_json::Value, anyhow::Error> {
     //filepathから、ファイル名をbinaryを取得
     let file_path = std::path::PathBuf::from_str(file_path_str)?;
-    let file_name = file_path.file_name().context("Invalid file path")?.to_string_lossy();
+    let file_name = file_path
+        .file_name()
+        .context("Invalid file path")?
+        .to_string_lossy();
     let file_binary = util::get_file_binary(file_path.as_path())?;
     let file_byte_size = file_binary.len();
 
@@ -72,27 +70,26 @@ async fn transcribe_verbose_json(
     let client = util::create_client()?;
     let mut text_full = "".to_string();
 
-    if OPENAI_MAXIMUM_CONTENT_SIZE_BYTES > file_byte_size {
+    if OPENAI_MAXIMUM_CONTENT_SIZE_BYTES > file_byte_size as u64 {
         let split_count = (file_byte_size as u64 / OPENAI_MAXIMUM_CONTENT_SIZE_BYTES) as u64 + 1;
-        let split_time = duration/split_count as f64;
-        
+        let split_time = duration / split_count as f64;
+
         // 一時的なディレクトリを作成
         let temp_dir = tempdir()?;
         println!("Temporary directory created at: {:?}", temp_dir.path());
-    
-    
+
         let split_output = Command::new("ffmpeg")
-                .arg("-i")
-                .arg(file_path.as_os_str().to_string_lossy().as_ref())
-                .arg("-f")
-                .arg("segment")
-                .arg("-segment_time")
-                .arg(split_time.to_string())
-                .arg("-c")
-                .arg("copy")
-                .arg(temp_dir.path().join("output%03d.mp3"))
-                .output()?;
-    
+            .arg("-i")
+            .arg(file_path.as_os_str().to_string_lossy().as_ref())
+            .arg("-f")
+            .arg("segment")
+            .arg("-segment_time")
+            .arg(split_time.to_string())
+            .arg("-c")
+            .arg("copy")
+            .arg(temp_dir.path().join("output%03d.mp3"))
+            .output()?;
+
         let split_result = str::from_utf8(&split_output.stdout)?;
         println!("split_result: {}", split_result);
 
@@ -125,9 +122,7 @@ async fn transcribe_verbose_json(
                 text_full.push_str(response.text.as_str());
             }
         }
-
     } else {
-
         let audio_input = AudioInput::from_vec_u8(file_name.to_string(), file_binary);
 
         let request = CreateTranscriptionRequestArgs::default()

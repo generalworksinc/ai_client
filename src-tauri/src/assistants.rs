@@ -1,7 +1,7 @@
+use crate::constants::{DIR_ASSISTANTS, DIR_OPEN_AI_FILES, DIR_THREADS};
 use crate::models::chat::ChatApiMessage;
 use crate::util::{self, create_client};
-use crate::{SAVING_DIRECTORY};
-use crate::constants::{DIR_ASSISTANTS, DIR_OPEN_AI_FILES, DIR_THREADS};
+use crate::SAVING_DIRECTORY;
 use base64::prelude::*;
 use futures::StreamExt;
 use serde::Deserialize;
@@ -13,11 +13,13 @@ use tauri::Window;
 use async_openai::{
     config::OpenAIConfig,
     types::{
-        self, AssistantStreamEvent, CreateAssistantRequestArgs, CreateFileRequestArgs, MessageAttachment, MessageAttachmentTool,
-        CreateImageRequestArgs, CreateMessageRequestArgs, CreateMessageRequestContent,
-        CreateRunRequestArgs, CreateThreadRequestArgs, FileInput, ImageFile, ImageInput, ImageUrl, AssistantToolsFileSearch,
-        MessageContentInput, MessageDeltaContent, MessageRequestContentTextObject, MessageRole,
-        RunObject, SubmitToolOutputsRunRequest, ToolsOutputs, OpenAIFile, ModifyAssistantRequest, AssistantToolFileSearchResources, 
+        self, AssistantStreamEvent, AssistantToolFileSearchResources, AssistantToolsFileSearch,
+        CreateAssistantRequestArgs, CreateFileRequestArgs, CreateImageRequestArgs,
+        CreateMessageRequestArgs, CreateMessageRequestContent, CreateRunRequestArgs,
+        CreateThreadRequestArgs, FileInput, ImageFile, ImageInput, ImageUrl, MessageAttachment,
+        MessageAttachmentTool, MessageContentInput, MessageDeltaContent,
+        MessageRequestContentTextObject, MessageRole, ModifyAssistantRequest, OpenAIFile,
+        RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
     },
     Client,
 };
@@ -92,7 +94,6 @@ pub async fn make_assistant(
     params: String,
     timeout_sec: Option<u64>,
 ) -> Result<String, String> {
-
     #[derive(Deserialize)]
     struct PostData {
         // message: Option<String>,
@@ -103,8 +104,7 @@ pub async fn make_assistant(
     }
     // println!("call assistents_test: {:#?}", params);
     let postData = serde_json::from_str::<PostData>(params.as_str()).unwrap();
-    
-    
+
     match exec_make_assistant(
         &postData.assistant_name,
         // postData.message.unwrap_or_default().as_str(),
@@ -120,9 +120,12 @@ pub async fn make_assistant(
     }
 }
 
-async fn exec_make_assistant(assistant_name: &str, instructions: &str, 
-    file_list: Option<Vec<Vec<String>>>, vector_id_list: Option<Vec<String>>) -> anyhow::Result<()> {
-
+async fn exec_make_assistant(
+    assistant_name: &str,
+    instructions: &str,
+    file_list: Option<Vec<Vec<String>>>,
+    vector_id_list: Option<Vec<String>>,
+) -> anyhow::Result<()> {
     //create a client
     let client = create_client()?;
 
@@ -169,20 +172,20 @@ async fn exec_make_assistant(assistant_name: &str, instructions: &str,
         Some(vector_id_list) if vector_id_list.len() > 0 => {
             println!("set vector_ids! ");
             assistant_object = client
-            .assistants()
-            .update(
-                &assistant_object.id,
-                ModifyAssistantRequest {
-                    tool_resources: Some(
-                        AssistantToolFileSearchResources {
-                            vector_store_ids: vector_id_list,
-                        }
-                        .into(),
-                    ),
-                    ..Default::default()
-                },
-            )
-            .await?;
+                .assistants()
+                .update(
+                    &assistant_object.id,
+                    ModifyAssistantRequest {
+                        tool_resources: Some(
+                            AssistantToolFileSearchResources {
+                                vector_store_ids: vector_id_list,
+                            }
+                            .into(),
+                        ),
+                        ..Default::default()
+                    },
+                )
+                .await?;
         }
         _ => {
             //
@@ -201,7 +204,6 @@ async fn exec_make_assistant(assistant_name: &str, instructions: &str,
     let mut f = File::create(file_path).unwrap();
     let json_data = serde_json::to_string(&assistant_object)?;
     f.write_all(json_data.as_bytes())?;
-
 
     //アップしたファイル情報をローカルに保存する
     let files_dir_path = std::path::Path::new(dir.as_str()).join(DIR_OPEN_AI_FILES);
@@ -386,25 +388,25 @@ async fn exec_make_new_thread(
                 .await?;
         }
 
-        let message = 
-            match assistant.tool_resources.clone().and_then(|x| x.file_search) {
-                Some(file_search) if file_search.vector_store_ids.len() > 0 => {
-                    println!("file_search: {:?}", file_search.vector_store_ids);
-                    CreateMessageRequestArgs::default()
+        let message = match assistant.tool_resources.clone().and_then(|x| x.file_search) {
+            Some(file_search) if file_search.vector_store_ids.len() > 0 => {
+                println!("file_search: {:?}", file_search.vector_store_ids);
+                CreateMessageRequestArgs::default()
+                    .role(MessageRole::User)
+                    .content(content.clone())
+                    // .attachments(vec![MessageAttachment {
+                    //     file_id: "file-ElLGY0CKqOPjmFTzjrFaDbiu".into(),
+                    //     tools: vec![MessageAttachmentTool::FileSearch],
+                    // }])
+                    .build()
+                    .unwrap()
+            }
+            _ => CreateMessageRequestArgs::default()
                 .role(MessageRole::User)
                 .content(content.clone())
-                // .attachments(vec![MessageAttachment {
-                //     file_id: "file-ElLGY0CKqOPjmFTzjrFaDbiu".into(),
-                //     tools: vec![MessageAttachmentTool::FileSearch],
-                // }])
-                .build().unwrap()
-                }
-                _ => {
-                    CreateMessageRequestArgs::default()
-                .role(MessageRole::User)
-                .content(content.clone()).build().unwrap()
-                }
-            };
+                .build()
+                .unwrap(),
+        };
         //attach message to the thread
         let _message_obj = client
             .threads()
@@ -628,7 +630,7 @@ async fn exec_make_new_thread(
     let mut f_thread = File::create(thread_file_path)?;
     let json_data = serde_json::to_string(&thread)?;
     f_thread.write_all(json_data.as_bytes())?;
-    
+
     Ok(())
 }
 

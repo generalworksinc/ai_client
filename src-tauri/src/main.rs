@@ -12,12 +12,12 @@ mod assistants_stream;
 mod assistants_tool_calls;
 mod assistants_vision_chat;
 mod audio;
+mod chat_completion;
+mod constants;
 mod embedding;
 mod models;
-mod util;
-mod chat_completion;
 mod open_ai_files;
-mod constants;
+mod util;
 
 use anyhow::Context;
 use constants::{DIR_CONVERSATION, DIR_OPEN_AI_FILES, DIR_THREADS};
@@ -35,7 +35,7 @@ use tauri::{CustomMenuItem, Menu, Submenu};
 use rand::prelude::*;
 use util::create_client;
 
-use chrono::{TimeZone, Utc, Local};
+use chrono::{Local, TimeZone, Utc};
 use once_cell::sync::OnceCell;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -161,14 +161,12 @@ struct Keys {
 #[derive(Deserialize, Serialize, Default)]
 struct ThreadData {
     pub id: Option<String>,
-    pub name: Option<String>, 
+    pub name: Option<String>,
     pub object: Option<String>,
     pub created_at: Option<i64>,
     pub time: Option<String>,
     // {"id":"thread_aFRZqocRwwAJQ0wTBphELg1v","object":"thread","created_at":1723108843,"tool_resources":{},"metadata":{}}
 }
-
-
 
 #[derive(Deserialize, Serialize)]
 struct TitleData {
@@ -252,9 +250,18 @@ async fn change_message(
         .join(id.clone());
 
     if file_path_conversation.exists() {
-        let mut conversation_obj: AIClientConversation = serde_json::from_str(std::fs::read_to_string(file_path_conversation.as_path()).unwrap().as_str()).unwrap();
+        let mut conversation_obj: AIClientConversation = serde_json::from_str(
+            std::fs::read_to_string(file_path_conversation.as_path())
+                .unwrap()
+                .as_str(),
+        )
+        .unwrap();
         conversation_obj.title = title;
-        std::fs::write(file_path_conversation, serde_json::to_string(&conversation_obj).unwrap()).map_err(|err| err.to_string())?;
+        std::fs::write(
+            file_path_conversation,
+            serde_json::to_string(&conversation_obj).unwrap(),
+        )
+        .map_err(|err| err.to_string())?;
         //更新
         // title_f.write_all(title.as_bytes()).unwrap();
     }
@@ -298,15 +305,20 @@ async fn delete_thread(app_handle: tauri::AppHandle, id: String) -> Result<Strin
     if file_path_conversation.exists() {
         //ID付け替える
         let new_id = uuid::Uuid::new_v4().to_string();
-        let new_path =  std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION).join(new_id.as_str());
-        std::fs::rename(file_path_conversation.as_path(), new_path.as_path()).map_err(|x| x.to_string())?;
-        let file_data_str = std::fs::read_to_string(new_path.as_path()).map_err(|x| x.to_string())?;
-        let mut conversation: AIClientConversation = serde_json::from_str(file_data_str.as_str()).map_err(|x| x.to_string())?;
+        let new_path = std::path::Path::new(dir.as_str())
+            .join(DIR_CONVERSATION)
+            .join(new_id.as_str());
+        std::fs::rename(file_path_conversation.as_path(), new_path.as_path())
+            .map_err(|x| x.to_string())?;
+        let file_data_str =
+            std::fs::read_to_string(new_path.as_path()).map_err(|x| x.to_string())?;
+        let mut conversation: AIClientConversation =
+            serde_json::from_str(file_data_str.as_str()).map_err(|x| x.to_string())?;
         conversation.id = new_id;
         let file_data_updated_str = serde_json::to_string(&conversation).unwrap();
         std::fs::write(new_path.as_path(), file_data_updated_str).map_err(|x| x.to_string())?;
     }
-    
+
     Ok("ID変更しました".to_string())
 }
 
@@ -316,15 +328,15 @@ async fn delete_message(app_handle: tauri::AppHandle, id: String) -> Result<Stri
     let file_path_conversation = std::path::Path::new(dir.as_str())
         .join(DIR_CONVERSATION)
         .join(id.clone());
-    
+
     if file_path_conversation.exists() {
         //削除
         std::fs::remove_file(file_path_conversation).map_err(|x| x.to_string())?;
     }
-    
+
     //Threadの場合、削除します
 
-    if !id.is_empty() && util::is_thread(id.as_str()){
+    if !id.is_empty() && util::is_thread(id.as_str()) {
         println!("thread_id: {:#?}", id);
         delete_thread(app_handle, id.clone()).await?;
     }
@@ -348,7 +360,7 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
 
     //make file title
     let mut title_content = "".to_string();
-    let messages =  post_data.data;
+    let messages = post_data.data;
     for message in &messages {
         println!("message: {:#?}", message);
         if message.role == "user" {
@@ -371,7 +383,7 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
             }
         }
     }
-    
+
     //threadの保存が不要な場合、削除する
     let thread_id = if let Some(thread_id) = post_data.thread_id.filter(|x| !x.is_empty()) {
         if post_data.save_thread == Some(true) {
@@ -387,7 +399,7 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
     // write_message into file.
     let id = if !thread_id.is_empty() {
         thread_id
-    } else if let Some(id) = post_data.id .clone(){
+    } else if let Some(id) = post_data.id.clone() {
         id
     } else {
         uuid::Uuid::new_v4().to_string()
@@ -405,14 +417,22 @@ async fn save_chat(app_handle: tauri::AppHandle, params: String) -> Result<Strin
     let file_path = content_dir_path.join(id.clone());
     let mut f = File::create(file_path).unwrap();
     // let messages = serde_json::from_str::<Vec<ChatApiMessageWithHtml>>(post_data.data)?;
-    let ai_client_conversation_data = AIClientConversation{
+    let ai_client_conversation_data = AIClientConversation {
         id: id.clone(),
         assistant_id: post_data.assistant_id.clone(),
-        title: title_content ,
-        messages: messages.into_iter().map(|x| x.convert_with_html()).collect(),
+        title: title_content,
+        messages: messages
+            .into_iter()
+            .map(|x| x.convert_with_html())
+            .collect(),
         ..Default::default()
     };
-    f.write_all(serde_json::to_string(&ai_client_conversation_data).unwrap().as_bytes()).unwrap();
+    f.write_all(
+        serde_json::to_string(&ai_client_conversation_data)
+            .unwrap()
+            .as_bytes(),
+    )
+    .unwrap();
 
     refresh_index_db().unwrap();
 
@@ -502,7 +522,8 @@ fn refresh_index_db() -> anyhow::Result<()> {
 
             let file_data_str = std::fs::read_to_string(file_path_buff.as_path())?;
             // println!("file_data_str: {:#?}", file_data_str);
-            let ai_conversation_obj: AIClientConversation = serde_json::from_str(file_data_str.as_str())?;
+            let ai_conversation_obj: AIClientConversation =
+                serde_json::from_str(file_data_str.as_str())?;
             // println!("file_name: {:#?}", file_name);
             tree.insert(
                 std::fs::read_to_string(&file_path_buff)?.as_bytes(),
@@ -591,7 +612,8 @@ async fn load_messages(app_handle: tauri::AppHandle, id: String) -> Result<Strin
             std::fs::read_to_string(file_path)
                 .unwrap_or_default()
                 .as_str(),
-        ).map_err(|x| x.to_string())?;
+        )
+        .map_err(|x| x.to_string())?;
 
         for message in conversation.messages.iter_mut() {
             message.content_html = Some(markdown::to_html(message.content.as_str()));
@@ -623,14 +645,24 @@ async fn reflesh_threads(app_handle: tauri::AppHandle) -> Result<String, String>
                                 .as_nanos() as i64,
                         );
 
-                        let thread_file_string = std::fs::read_to_string(entry.path()).map_err(|x| x.to_string()).unwrap();
-                        let mut threadData: ThreadData = if thread_file_string.is_empty() { ThreadData::default() } else { serde_json::from_str(thread_file_string.as_str()).unwrap()};
-                        if threadData.created_at.is_none() {
-                            threadData.time = Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string());
+                        let thread_file_string = std::fs::read_to_string(entry.path())
+                            .map_err(|x| x.to_string())
+                            .unwrap();
+                        let mut threadData: ThreadData = if thread_file_string.is_empty() {
+                            ThreadData::default()
                         } else {
-                            chrono::Utc.timestamp_millis_opt(threadData.created_at.unwrap()*1000).map(|x| {
-                                threadData.time = Some(x.format("%Y-%m-%d %H:%M:%S").to_string());
-                            });
+                            serde_json::from_str(thread_file_string.as_str()).unwrap()
+                        };
+                        if threadData.created_at.is_none() {
+                            threadData.time =
+                                Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string());
+                        } else {
+                            chrono::Utc
+                                .timestamp_millis_opt(threadData.created_at.unwrap() * 1000)
+                                .map(|x| {
+                                    threadData.time =
+                                        Some(x.format("%Y-%m-%d %H:%M:%S").to_string());
+                                });
                         }
                         if threadData.id.is_none() {
                             threadData.id = Some(entry.file_name().to_string_lossy().to_string());
@@ -666,8 +698,13 @@ async fn reflesh_titles(app_handle: tauri::AppHandle) -> Result<String, String> 
                                 .unwrap()
                                 .as_nanos() as i64,
                         );
-                        let mut ai_client_conversation_cata: AIClientConversation = serde_json::from_str(std::fs::read_to_string(entry.path()).unwrap().as_str()).unwrap();
-                        ai_client_conversation_cata.time = Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string());
+                        let mut ai_client_conversation_cata: AIClientConversation =
+                            serde_json::from_str(
+                                std::fs::read_to_string(entry.path()).unwrap().as_str(),
+                            )
+                            .unwrap();
+                        ai_client_conversation_cata.time =
+                            Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string());
                         // let data = AIClientConversation {
                         //     name: std::fs::read_to_string(entry.path()).unwrap(),
                         //     id: entry.file_name().to_string_lossy().to_string(),
@@ -906,17 +943,17 @@ fn main() {
     //         let file_name = file_path_buff.file_name().unwrap().to_string_lossy();
 
     //         let conversation_list_str = std::fs::read_to_string(file_path_buff.as_path()).unwrap();
-            
+
     //         let title_path = title_dir_path.join(file_name.as_ref());
     //         // println!("title_path: {:#?}", title_path);
     //         let title = std::fs::read_to_string(title_path.as_path()).unwrap();
-            
+
     //         // println!("title: {:#?}", title);
     //         // println!("file_data_str: {:#?}", conversation_list_str);
     //         let new_obj = AIClientConversation{
     //             id: file_name.to_string(),
     //             title: title,
-    //             messages: serde_json::from_str::<Vec<ChatApiMessageWithHtml>>(conversation_list_str.as_str()).unwrap(),                
+    //             messages: serde_json::from_str::<Vec<ChatApiMessageWithHtml>>(conversation_list_str.as_str()).unwrap(),
     //             ..Default::default()
     //         };
     //         println!("ob: {:#?}", new_obj);
@@ -956,12 +993,12 @@ fn main() {
             reflesh_threads,
             open_ai_files::reflesh_openai_files,
             open_ai_files::reflesh_vectors,
-            open_ai_files::upload_files ,
+            open_ai_files::upload_files,
             load_messages,
             delete_message,
             delete_thread,
             open_ai_files::delete_openai_file,
-            open_ai_files:: delete_vector,
+            open_ai_files::delete_vector,
             open_ai_files::make_vector,
             change_message,
             search_conversations,
