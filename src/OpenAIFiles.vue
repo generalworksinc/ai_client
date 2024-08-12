@@ -2,6 +2,7 @@
 // This starter template is using Vue 3 <script setup> SFCs
 // Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
 import { invoke, convertFileSrc } from '@tauri-apps/api/tauri'
+import { open } from '@tauri-apps/api/dialog';
 import { emit, listen } from '@tauri-apps/api/event';
 import { useRouter } from 'vue-router';
 import { ref, nextTick, onMounted, onUnmounted, computed } from "vue";
@@ -33,26 +34,25 @@ const selectedAIFileListForVector = ref([]);
 
 const searchResultList = ref([]);
 
-const fileInputElement = ref(null);
-const fileDataList = ref([]);
+const fileDataList = ref(new Set());
+
 
 const openAIFilePick = async () => {
-    // clearSelectedFile();
-    console.log('fileInput.value:', fileInputElement.value);
-    fileInputElement.value.click();
-};
-const openAIFilePicked = async (event) => {
-    const files = event.target.files;
-    console.log('files:', files);
-    console.log('fileInputImage.value:', fileInputElement.value);
-    // readFile(files[0], true);
-    fileDataList.value.push(files[0]);
-};
-const removeFile = (file) => {
-    const index = fileDataList.value.indexOf(file);
-    if (index > -1) {
-        fileDataList.value.splice(index, 1);
+    const filePathList = await open({
+        multiple: true,
+        // filters: [{
+        //     name: 'Image',
+        //     extensions: ['png', 'jpeg']
+        // }]
+    });
+    for (const filePath of filePathList) {
+        fileDataList.value.add(filePath);
     }
+    console.log('fileDataList:', fileDataList);
+};
+
+const removeFile = (file) => {
+    fileDataList.value.delete(file);
 };
 const deleteVector = (id) => {
     console.log('delete_vector');
@@ -85,9 +85,6 @@ const readFile = async () => {
         });
     }));
 
-};
-const clearSelectedFile = () => {
-    fileDataList.value = [];
 };
 
 let articleDom = null;
@@ -158,6 +155,13 @@ const vectorListSorted = computed(() => {
 });
 
 //methods
+const filePathRegex = /[^\\/]+$/;
+const getFileName = (filePath) => {
+    // 正規表現を使用してファイル名を取得
+    const match = filePath.match(filePathRegex);
+    return match ? match[0] : "(no file)"; // マッチがあればファイル名を返す
+}
+
 const unselectOpenAIFile = (file) => {
     const fileIndex = selectedAIFileListForVector.value.indexOf(file);
     if (fileIndex >= 0) {
@@ -219,7 +223,7 @@ const save_file = async () => {
         invoke('upload_files', {
             params: JSON.stringify({
                 message: message.value,
-                file_list: fileList,
+                file_list: [...fileDataList.value],
             })
         }).then(async res => {
             clear_search();
@@ -254,6 +258,7 @@ const clear_search = () => {
     errorMsg.value = '';
     search_word.value = '';
     searchResultList.value = [];
+    fileDataList.value.clear();
     // all_messages.value = [];
 }
 
@@ -353,9 +358,8 @@ const search = () => {
                     <button @click="relaod_page">reload_page</button>
                 </div>
                 <div><button @click="openAIFilePick" style="padding: 5 px; margin-left: 5px;">参考ファイルUP</button>
-                    <input type="file" style="display: none" ref="fileInputElement" @change="openAIFilePicked" />
-                    <div v-for="(file, ind) in fileDataList" :key="'file_' + ind">{{ file.name }}, {{ ind }}<button
-                            @click="removeFile(file)">×</button></div>
+                    <div v-for="(file, ind) in fileDataList" :key="'file_' + ind">{{ getFileName(file) }}, {{ ind
+                        }}<button @click="removeFile(file)">×</button></div>
                 </div>
 
                 <div>

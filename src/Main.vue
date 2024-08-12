@@ -2,7 +2,9 @@
 // This starter template is using Vue 3 <script setup> SFCs
 // Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
 import Greet from "./components/Greet.vue";
-import { invoke, convertFileSrc } from '@tauri-apps/api/tauri'
+import { invoke, convertFileSrc } from '@tauri-apps/api/tauri';
+import { open } from '@tauri-apps/api/dialog';
+//https://tauri.app/v1/api/js/dialog/
 import { emit, listen } from '@tauri-apps/api/event';
 import { useRouter } from 'vue-router';
 import { ref, nextTick, onMounted, onUnmounted, computed } from "vue";
@@ -58,7 +60,6 @@ const vectorList = ref([]);
 const searchResultList = ref([]);
 
 //audio
-const fileInputAudio = ref(null);
 const audioFile = ref(null);
 //image
 const imageUrl = ref("");
@@ -346,41 +347,35 @@ const readImageFile = async () => {
 //audio
 const audioFilePick = async () => {
     clearSelectedFile();
-    console.log('fileInput.value:', fileInputAudio.value);
-    fileInputAudio.value.click();
+    const filePath = await open({
+        multiple: false,
+        // filters: [{
+        //     name: 'Image',
+        //     extensions: ['png', 'jpeg']
+        // }]
+    });
+    console.log('filePath:', filePath);
+    audioFile.value = filePath;
 };
-const audioFilePicked = async (event) => {
-    const files = event.target.files;
-    console.log('files:', files);
-    console.log('fileInputAudio.value:', fileInputAudio.value);
-    // readFile(files[0], true);
-    audioFile.value = files[0]
-};
+
 const audioTranscribe = async () => {
-    //TODO メモリを有効に使うために、本当はここでバイナリ読み込むのではなく、Rust側で処理を行いたい（ブラウザのメモリ使用量を抑えるため）
     //ファイルを読み込んで、invokeする
     if (audioFile.value) {
-        const fileReader = new FileReader();
-        const fileName = audioFile.value.name;
-        fileReader.addEventListener('load', () => {
-            const fileBody = fileReader.result;
-            invoke('audio_transcribe', { filebody: fileBody, filename: fileName }).then(async res => {
-                console.log('res:', res);
-                const response = JSON.parse(res);
-                console.log('response:', response);
+        invoke('audio_transcribe', { filepath: audioFile.value }).then(async res => {
+            console.log('res:', res);
+            const response = JSON.parse(res);
+            console.log('response:', response);
 
-                const lastAssistanceMessage = { 'role': 'assistant', 'content': response.text, 'content_html': response.text };
-                all_messages.value.push(lastAssistanceMessage);
-                now_messaging.value = "";
-                now_messaging_raw = "";
-                lastWaitingMessageId.value = "";
-                clearSelectedFile();
-            }).catch(err => {
-                console.error('error:', err);
-                now_messaging.value = `<pre>${err}</pre>`;
-            });
+            const lastAssistanceMessage = { 'role': 'assistant', 'content': response.text, 'content_html': response.text };
+            all_messages.value.push(lastAssistanceMessage);
+            now_messaging.value = "";
+            now_messaging_raw = "";
+            lastWaitingMessageId.value = "";
+            clearSelectedFile();
+        }).catch(err => {
+            console.error('error:', err);
+            now_messaging.value = `<pre>${err}</pre>`;
         });
-        fileReader.readAsDataURL(audioFile.value)
     }
 };
 const clearSelectedFile = () => {
@@ -782,9 +777,8 @@ const TEMPLATES = [
                         </select>
                     </h3>
                     <button @click="audioFilePick" style="padding: 5 px; margin-left: 5px;">オーディオファイル読込</button>
-                    <input type="file" style="display: none" ref="fileInputAudio" @change="audioFilePicked" />
                     <button @click="audioTranscribe">Audio Transcribe</button>
-                    <div v-if="audioFile">{{ audioFile.name }}</div>
+                    <div v-if="audioFile">{{ audioFile }}</div>
                 </div>
                 <div style="display: flex; align-items: flex-end;">
                     <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"

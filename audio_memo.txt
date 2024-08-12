@@ -1,0 +1,12 @@
+ffmpeg -i "movie_sample.mp4" -vn -acodec libmp3lame -q:a 2 audio.mp3
+
+
+file_binary len: 37957047
+Error: "server_error: Maximum content size limit (26214400) 
+
+
+ffmpeg -i output.mp3 -f segment -segment_time [分割時間] -c copy output%03d.mp3
+
+# get time of audio
+ffprobe -v error -show_entries format=duration -of csv=p=0 'audio.mp3'
+

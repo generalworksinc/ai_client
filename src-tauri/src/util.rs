@@ -1,5 +1,9 @@
-use anyhow::Result;
+use std::{fs::File, path::{self, Path}};
 
+use anyhow::Result;
+use base64::alphabet::Alphabet;
+use std::io::prelude::*;
+use base64::prelude::*;
 use crate::API_KEY;
 use async_openai::{config::OpenAIConfig, Client};
 
@@ -36,4 +40,33 @@ pub fn create_client() -> Result<Client<OpenAIConfig>> {
 
 pub fn is_thread(id: &str) -> bool {
     id.starts_with(OPENAI_THREAD_HEAD_WORD)
+}
+
+
+
+pub fn get_file_base64(file_path: &Path) -> Result<String> {
+    let mut file = File::open(file_path)?;
+    let mut buffer = Vec::new();
+
+    // ファイルの内容を読み込む
+    file.read_to_end(&mut buffer)?;
+
+    // MIMEタイプを取得
+    let mime_type = mime_guess::from_path(&file_path).first_or_octet_stream();
+
+    // Base64エンコード     
+    let base64_data = BASE64_STANDARD.encode(&buffer);
+    // データURL形式に整形
+    Ok(format!("data:{};base64,{}", mime_type, base64_data))
+
+}
+
+pub fn get_file_binary(file_path: &Path) -> Result<Vec<u8>> {
+    let mut file = File::open(file_path)?;
+    let mut buffer = Vec::new();
+
+    // ファイルの内容を読み込む
+    file.read_to_end(&mut buffer)?;
+    Ok(buffer)
+
 }

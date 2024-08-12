@@ -10,7 +10,9 @@ use chrono::{TimeZone, Utc, Local};
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
+use std::str::FromStr;
 use tauri::Window;
+use anyhow::Context;
 
 use async_openai::{
     config::OpenAIConfig,
@@ -198,7 +200,7 @@ pub async fn upload_files(
         // message: Option<String>,
         // assistant_name: String,
         // instructions: Option<String>,
-        file_list: Option<Vec<Vec<String>>>,
+        file_list: Option<Vec<String>>,
     }
     // println!("call assistents_test: {:#?}", params);
     let post_data = serde_json::from_str::<PostData>(params.as_str()).unwrap();
@@ -218,28 +220,20 @@ pub async fn upload_files(
     }
 }
 
-async fn exec_upload_files(file_list: Option<Vec<Vec<String>>>) -> anyhow::Result<()> {
+
+async fn exec_upload_files(file_path_list: Option<Vec<String>>) -> anyhow::Result<()> {
     //create a client
     let client = create_client()?;
 
     //ファイルがある場合は、ファイルをアップロードする
     let mut file_id_list: Vec<OpenAIFile> = vec![];
-    if let Some(file_list) = file_list {
-        for file in file_list {
-            let file_name = file[1].clone();
-            let file_body = file[0].clone();
-            let file_binary: Vec<u8>;
+    if let Some(file_path_list) = file_path_list {
+        for file_path in file_path_list.iter().filter_map(|x| std::path::PathBuf::from_str(x.as_str()).ok()) {
+            //filepathから、ファイル名をbinaryを取得
+            let file_name = file_path.file_name().context("Invalid file path")?.to_string_lossy();
+            let file_binary = util::get_file_binary(file_path.as_path())?;
             //////////////////////////////////////////////////////////////////////////////////////////
-            if let Some((file_type, file_body)) = file_body.split_once("base64,") {
-                println!("file_type: {:?}", file_type);
-                file_binary = BASE64_STANDARD.decode(file_body)?;
-            } else {
-                return Err(anyhow::anyhow!("Invalid file format"));
-            }
-            println!("file_binary len: {:?}", file_binary.len());
-
-            let bytes = bytes::Bytes::from(file_binary);
-            let file_input = FileInput::from_bytes(file_name.to_string(), bytes);
+            let file_input = FileInput::from_vec_u8(file_name.to_string(), file_binary);
 
             let create_file_request = types::CreateFileRequestArgs::default()
                 .file(file_input)

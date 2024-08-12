@@ -1,8 +1,13 @@
 use crate::util;
 use base64::prelude::*;
-use base64::Engine as _;
 use serde_json::json;
 use tauri::Window;
+use core::str;
+use std::str::FromStr;
+use anyhow::Context;
+use crate::constants::OPENAI_MAXIMUM_CONTENT_SIZE_BYTES;
+use std::process::Command;
+use tempfile::tempdir;
 
 use async_openai::types::{
     AudioInput, AudioResponseFormat, CreateTranscriptionRequestArgs, TimestampGranularity,
@@ -12,11 +17,10 @@ use async_openai::types::{
 pub async fn audio_transcribe(
     window: Window,
     app_handle: tauri::AppHandle,
-    filebody: String,
-    filename: String,
+    filepath: String,
 ) -> Result<String, String> {
-    println!("call audio_transcribe: {:#?}", filename);
-    match audio_transcribe_exec(filename.as_str(), filebody.as_str())
+    println!("call audio_transcribe: {:#?}", filepath);
+    match audio_transcribe_exec(filepath.as_str())
         .await
         .map_err(|e| format!("{:?}", e))
     {
@@ -29,58 +33,128 @@ pub async fn audio_transcribe(
 }
 
 async fn audio_transcribe_exec(
-    file_name: &str,
-    file_body: &str,
+    file_path: &str,
 ) -> anyhow::Result<serde_json::Value> {
     // transcribe_json().await?;
-    transcribe_verbose_json(file_name, file_body).await
+    transcribe_verbose_json(file_path).await
 }
 
 async fn transcribe_verbose_json(
-    file_name: &str,
-    file_body: &str,
+    file_path_str: &str,
 ) -> Result<serde_json::Value, anyhow::Error> {
-    let file_binary: Vec<u8>;
-    // let stan = base64::engine::general_purpose::STANDARD;
+    
+    //filepathから、ファイル名をbinaryを取得
+    let file_path = std::path::PathBuf::from_str(file_path_str)?;
+    let file_name = file_path.file_name().context("Invalid file path")?.to_string_lossy();
+    let file_binary = util::get_file_binary(file_path.as_path())?;
+    let file_byte_size = file_binary.len();
 
-    if let Some((file_type, file_body)) = file_body.split_once("base64,") {
-        file_binary = BASE64_STANDARD.decode(file_body)?;
-    } else {
-        return Err(anyhow::anyhow!("Invalid file format"));
-    }
-    // } else {
-    //     return Err(anyhow::anyhow!("Invalid file format"));
-    // }
     println!("file_binary len: {:?}", file_binary.len());
 
+    //ファイルをサイズから分割して複数にしてアップする
+    let output = Command::new("ffprobe")
+        .arg("-v")
+        .arg("error")
+        .arg("-show_entries")
+        .arg("format=duration")
+        .arg("-of")
+        .arg("csv=p=0")
+        .arg(format!("{}", file_path.to_string_lossy()).as_str())
+        .output()?;
+
+    // コマンドの出力をUTF-8として解析する
+    let duration_str = str::from_utf8(&output.stdout)?;
+
+    // 取得したdurationを表示する
+    let duration = f64::from_str(duration_str.trim())?; // 前後の空白を取り除く
+    println!("Duration: {}", duration);
+
     let client = util::create_client()?;
-    let bytes = bytes::Bytes::from(file_binary);
-    let audio_input = AudioInput::from_bytes(file_name.to_string(), bytes);
+    let mut text_full = "".to_string();
 
-    let request = CreateTranscriptionRequestArgs::default()
-        .file(audio_input)
-        .model("whisper-1")
-        .response_format(AudioResponseFormat::VerboseJson)
-        .timestamp_granularities(vec![
-            TimestampGranularity::Word,
-            TimestampGranularity::Segment,
-        ])
-        .build()?;
+    if OPENAI_MAXIMUM_CONTENT_SIZE_BYTES > file_byte_size {
+        let split_count = (file_byte_size as u64 / OPENAI_MAXIMUM_CONTENT_SIZE_BYTES) as u64 + 1;
+        let split_time = duration/split_count as f64;
+        
+        // 一時的なディレクトリを作成
+        let temp_dir = tempdir()?;
+        println!("Temporary directory created at: {:?}", temp_dir.path());
+    
+    
+        let split_output = Command::new("ffmpeg")
+                .arg("-i")
+                .arg(file_path.as_os_str().to_string_lossy().as_ref())
+                .arg("-f")
+                .arg("segment")
+                .arg("-segment_time")
+                .arg(split_time.to_string())
+                .arg("-c")
+                .arg("copy")
+                .arg(temp_dir.path().join("output%03d.mp3"))
+                .output()?;
+    
+        let split_result = str::from_utf8(&split_output.stdout)?;
+        println!("split_result: {}", split_result);
 
-    let response = client.audio().transcribe_verbose_json(request).await?;
+        if let Ok(read_dir) = temp_dir.path().read_dir() {
+            for entry in read_dir.filter_map(|x| x.ok()) {
+                let file_path_buff = entry.path().clone();
+                let file_name = file_path_buff.file_name().unwrap().to_string_lossy();
+                let binary = util::get_file_binary(file_path_buff.as_path())?;
+                let audio_input = AudioInput::from_vec_u8(file_name.to_string(), binary);
 
-    println!("{}", response.text);
-    if let Some(words) = &response.words {
-        println!("- {} words", words.len());
-    }
-    if let Some(segments) = &response.segments {
-        println!("- {} segments", segments.len());
+                let request = CreateTranscriptionRequestArgs::default()
+                    .file(audio_input)
+                    .model("whisper-1")
+                    .response_format(AudioResponseFormat::VerboseJson)
+                    .timestamp_granularities(vec![
+                        TimestampGranularity::Word,
+                        TimestampGranularity::Segment,
+                    ])
+                    .build()?;
+
+                let response = client.audio().transcribe_verbose_json(request).await?;
+
+                println!("{}", response.text);
+                if let Some(words) = &response.words {
+                    println!("- {} words", words.len());
+                }
+                if let Some(segments) = &response.segments {
+                    println!("- {} segments", segments.len());
+                }
+                text_full.push_str(response.text.as_str());
+            }
+        }
+
+    } else {
+
+        let audio_input = AudioInput::from_vec_u8(file_name.to_string(), file_binary);
+
+        let request = CreateTranscriptionRequestArgs::default()
+            .file(audio_input)
+            .model("whisper-1")
+            .response_format(AudioResponseFormat::VerboseJson)
+            .timestamp_granularities(vec![
+                TimestampGranularity::Word,
+                TimestampGranularity::Segment,
+            ])
+            .build()?;
+
+        let response = client.audio().transcribe_verbose_json(request).await?;
+
+        println!("{}", response.text);
+        if let Some(words) = &response.words {
+            println!("- {} words", words.len());
+        }
+        if let Some(segments) = &response.segments {
+            println!("- {} segments", segments.len());
+        }
     }
 
     Ok(json!({
-        "text": response.text,
-        "words": response.words,
-        "segments": response.segments,
+        "text": text_full,
+        // "words": response.words,
+        // "segments": response.segments,
     }))
 }
 
