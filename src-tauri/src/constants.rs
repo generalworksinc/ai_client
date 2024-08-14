@@ -4,5 +4,6 @@ pub const DIR_THREADS: &str = "threads";
 pub const DIR_OPEN_AI_FILES: &str = "files";
 pub const DIR_OPEN_AI_VECTORS: &str = "vectors";
 
-// pub const OPENAI_MAXIMUM_CONTENT_SIZE_BYTES = 26214400;
-pub const OPENAI_MAXIMUM_CONTENT_SIZE_BYTES: u64 = 26200000;
+pub const OPENAI_MAXIMUM_CONTENT_SIZE_BYTES: u64 = 26214400;
+                                                // 112674483
+// pub const OPENAI_MAXIMUM_CONTENT_SIZE_BYTES: u64 = 15000000;

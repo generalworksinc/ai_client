@@ -776,6 +776,7 @@ const TEMPLATES = [
                                 {{ value }}</option>
                         </select>
                     </h3>
+                    <div>変換： ffmpeg -i "movie_sample.mp4" -vn -acodec libmp3lame -q:a 2 audio_sample.mp3</div>
                     <button @click="audioFilePick" style="padding: 5 px; margin-left: 5px;">オーディオファイル読込</button>
                     <button @click="audioTranscribe">Audio Transcribe</button>
                     <div v-if="audioFile">{{ audioFile }}</div>

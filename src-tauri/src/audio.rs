@@ -69,7 +69,7 @@ async fn transcribe_verbose_json(file_path_str: &str) -> Result<serde_json::Valu
     let client = util::create_client()?;
     let mut text_full = "".to_string();
 
-    if OPENAI_MAXIMUM_CONTENT_SIZE_BYTES > file_byte_size as u64 {
+    if OPENAI_MAXIMUM_CONTENT_SIZE_BYTES < file_byte_size as u64 {
         let split_count = (file_byte_size as u64 / OPENAI_MAXIMUM_CONTENT_SIZE_BYTES) as u64 + 1;
         let split_time = duration / split_count as f64;
 
@@ -92,6 +92,14 @@ async fn transcribe_verbose_json(file_path_str: &str) -> Result<serde_json::Valu
         let split_result = str::from_utf8(&split_output.stdout)?;
         println!("split_result: {}", split_result);
 
+        if let Ok(read_dir) = temp_dir.path().read_dir() {
+            for entry in read_dir.filter_map(|x| x.ok()) {
+                let file_path_buff = entry.path().clone();
+                let file_name = file_path_buff.file_name().unwrap().to_string_lossy();
+                let binary = util::get_file_binary(file_path_buff.as_path())?;
+                println!("file_len: {file_name:?}, {:?}", binary.len());
+            }
+        }
         if let Ok(read_dir) = temp_dir.path().read_dir() {
             for entry in read_dir.filter_map(|x| x.ok()) {
                 let file_path_buff = entry.path().clone();
