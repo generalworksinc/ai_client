@@ -130,6 +130,9 @@ async fn assistant_example(question: &str) -> anyhow::Result<()> {
                     MessageContent::ImageFile(_) | MessageContent::ImageUrl(_) => {
                         panic!("imaged are not expected in this example");
                     }
+                    MessageContent::Refusal(_) => {
+                        panic!("refusals are not expected in this example");
+                    }
                 };
                 //print the text
                 println!("--- Response: {}\n", text);

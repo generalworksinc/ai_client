@@ -271,37 +271,26 @@ const save_assistant = async () => {
     });
 };
 
-const sendMessageStream = () => {
-    console.log('sendMessageStream.');
-    // const messageId = uuidv4();
-    // lastWaitingMessageId.value = messageId;
+// const sendMessageStream = () => {
+//     console.log('sendMessageStream.');
 
-    // const userMessage = { 'role': send_role.value, 'content': message.value };
-    // all_messages.value.push(userMessage);
-    // now_messaging.value = "";
-    // message.value = '';
+//     invoke('assistents_test', {
+//         params: JSON.stringify({
+//             message: message.value,
+//         }),
+//         timeoutSec: timeoutSec.value,
+//     }).then(async res => {
+//         console.log('send_message_and_callback_stream response.', res);
+//     }).catch(err => {
+//         console.log('error:', err);
+//     });
 
-    invoke('assistents_test', {
-        params: JSON.stringify({
-            message: message.value,
-            // model: ai_name.value,
-            // temperature: 0.9,
-            // max_tokens: 2048,
-            // messageId: messageId,
-        }),
-        timeoutSec: timeoutSec.value,
-    }).then(async res => {
-        console.log('send_message_and_callback_stream response.', res);
-    }).catch(err => {
-        console.log('error:', err);
-    });
-
-    nextTick(() => {
-        if (articleDom) {
-            articleDom.scrollTo(0, articleDom.scrollHeight);
-        }
-    });
-}
+//     nextTick(() => {
+//         if (articleDom) {
+//             articleDom.scrollTo(0, articleDom.scrollHeight);
+//         }
+//     });
+// }
 
 const clear_search = () => {
     errorMsg.value = '';
@@ -431,10 +420,10 @@ const search = () => {
                         <button @click="selectVector(vector)" class="button-sm">選択</button>
                     </div>
                 </div>
-                <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
-                    style="height: 3rem; width: 80%;"></textarea>
+                <!-- <textarea type="text" v-model="message" @keydown.ctrl.enter="sendMessageStream"
+                    style="height: 3rem; width: 80%;"></textarea> -->
             </div>
-            <div><button @click="sendMessageStream">send_assistant</button></div>
+            <!-- <div><button @click="sendMessageStream">send_assistant</button></div> -->
 
         </Multipane>
     </div>

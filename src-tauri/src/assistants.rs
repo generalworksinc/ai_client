@@ -489,6 +489,11 @@ async fn exec_make_new_thread(
                                         println!("image_url: {:?}", image_url);
                                     }
                                 }
+                                MessageDeltaContent::Refusal(refusal) => {
+                                    if let Some(refusal) = refusal.refusal {
+                                        println!("refusal: {:?}", refusal);
+                                    }
+                                }
                             }
                         }
                     }

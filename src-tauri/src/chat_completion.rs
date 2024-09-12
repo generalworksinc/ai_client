@@ -6,7 +6,7 @@ use serde::Deserialize;
 use tauri::Window;
 
 use async_openai::types::{
-        ChatCompletionRequestMessageContentPart, ChatCompletionRequestMessageContentPartImageArgs,
+        ChatCompletionRequestUserMessageContent, ChatCompletionRequestUserMessageContentPart,ChatCompletionRequestMessageContentPartImageArgs,
         ChatCompletionRequestMessageContentPartTextArgs, ChatCompletionRequestUserMessageArgs,
         CreateChatCompletionRequestArgs, ImageDetail,
         ImageUrlArgs,
@@ -75,7 +75,7 @@ async fn exec_chat(
     let content_list: Vec<String> = messages.iter().map(|x| x.content.clone()).collect();
 
     let image_file_id = "".to_string();
-    let mut message_vec: Vec<ChatCompletionRequestMessageContentPart> = vec![];
+    let mut message_vec: Vec<ChatCompletionRequestUserMessageContentPart> = vec![];
 
     for content in content_list.iter() {
         if let Some(image_url) = image_url.clone().take_if(|x| !x.is_empty()) {
@@ -87,15 +87,14 @@ async fn exec_chat(
             // });
             // let image_url_message: ChatCompletionRequestMessage = ;
             message_vec.push(
-                ChatCompletionRequestMessageContentPartImageArgs::default()
+                ChatCompletionRequestUserMessageContentPart::from(ChatCompletionRequestMessageContentPartImageArgs::default()
                     .image_url(
                         ImageUrlArgs::default()
                             .url(image_url.as_str())
                             .detail(ImageDetail::Auto)
                             .build()?,
                     )
-                    .build()?
-                    .into(),
+                    .build()?)
             );
             // let content_vec: Vec<MessageContentInput> = vec![image_url];
             // let image_url_message = CreateMessageRequestArgs::default()

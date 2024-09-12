@@ -157,6 +157,9 @@ async fn assistant_code_interpreter_example(question: &str) -> anyhow::Result<()
                             MessageContent::ImageUrl(object) => {
                                 eprintln!("Got Image URL instead: {object:?}");
                             }
+                            MessageContent::Refusal(_) => {
+                                eprintln!("Refusals not supported on terminal");
+                            }
                         }
                     }
                 }

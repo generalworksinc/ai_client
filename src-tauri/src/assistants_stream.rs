@@ -65,6 +65,7 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()> {
         .model("gpt-4o-mini")
         .tools(vec![
             FunctionObject {
+                strict: Some(false),
                 name: "get_current_temperature".into(),
                 description: Some("Get the current temperature for a specific location".into()),
                 parameters: Some(serde_json::json!(
@@ -87,6 +88,7 @@ async fn assistant_stream_example(question: &str) -> anyhow::Result<()> {
             }.into(),
 
             FunctionObject {
+                strict: Some(false),
                 name: "get_rain_probability".into(),
                 description: Some("Get the probability of rain for a specific location".into()),
                 parameters: Some(serde_json::json!(

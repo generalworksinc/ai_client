@@ -194,6 +194,9 @@ async fn assistant_file_search_example(question: &str) -> anyhow::Result<()> {
                             MessageContent::ImageFile(_) | MessageContent::ImageUrl(_) => {
                                 eprintln!("Images not supported on terminal");
                             }
+                            MessageContent::Refusal(_) => {
+                                eprintln!("Refusals not supported on terminal");
+                            }
                         }
                     }
                 }
