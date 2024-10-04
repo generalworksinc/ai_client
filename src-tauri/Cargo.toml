@@ -1,6 +1,6 @@
 [package]
 name = "ai_client"
-version = "0.1.3"
+version = "0.1.4"
 description = "A ChatGPT Client Tauri App"
 authors = ["yuna"]
 edition = "2021"
