@@ -9,11 +9,9 @@ use serde::Deserialize;
 use std::fs::File;
 use std::io::prelude::*;
 use std::str::FromStr;
-use tauri::Window;
+use tauri::{Emitter, Window};
 
-use async_openai::types::{
-        self, CreateVectorStoreRequest, FileInput, OpenAIFile,
-    };
+use async_openai::types::{self, CreateVectorStoreRequest, FileInput, OpenAIFile};
 
 #[tauri::command]
 pub async fn reflesh_vectors(app_handle: tauri::AppHandle) -> Result<String, String> {

@@ -1,5 +1,6 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![allow(warnings)]
 
 mod assistants;
 mod assistants_audio_speech;
@@ -28,8 +29,11 @@ use std::io::prelude::*;
 use std::io::{BufReader, Read, Write};
 use std::path::PathBuf;
 use std::time::Duration;
-use tauri::Window;
-use tauri::{CustomMenuItem, Menu, Submenu};
+use tauri::{Emitter, Window};
+// use tauri::{CustomMenuItem, Menu, Submenu};
+use tauri::menu::{MenuBuilder, MenuItemBuilder, Submenu, SubmenuBuilder, PredefinedMenuItem, CheckMenuItemBuilder, MenuId};
+use tauri::{path::BaseDirectory, Manager};
+
 // use futures_util::stream::StreamExt;
 use rand::prelude::*;
 use util::create_client;
@@ -876,8 +880,7 @@ async fn send_message_and_callback_stream(
 
 fn init_config(app: &tauri::App) -> anyhow::Result<()> {
     let chat_gpt_config_dir = PATH_DIR_CHATGPT_CONFIG.get_or_init(|| {
-        app.path_resolver()
-            .app_config_dir()
+        app.path().app_config_dir()
             .unwrap()
             .join("chatGPT")
     });
@@ -914,24 +917,25 @@ fn init_config(app: &tauri::App) -> anyhow::Result<()> {
     Ok(())
 }
 fn main() {
-    let main_page = CustomMenuItem::new("main".to_string(), "Main");
-    let settings = CustomMenuItem::new("settings".to_string(), "Settings");
-    let assistants = CustomMenuItem::new("assistants".to_string(), "Assistants");
-    let samples = CustomMenuItem::new("samples".to_string(), "Samples");
-    let open_ai_files = CustomMenuItem::new("open_ai_files".to_string(), "OpenAIFiles");
-    let submenu = Submenu::new(
-        "Menu",
-        Menu::new()
-            .add_item(main_page)
-            .add_item(assistants)
-            .add_item(open_ai_files)
-            .add_item(samples)
-            .add_item(settings),
-    );
+    // let main_page = CustomMenuItem::new("main".to_string(), "Main");
+    // let settings = CustomMenuItem::new("settings".to_string(), "Settings");
+    // let assistants = CustomMenuItem::new("assistants".to_string(), "Assistants");
+    // let samples = CustomMenuItem::new("samples".to_string(), "Samples");
+    // let open_ai_files = CustomMenuItem::new("open_ai_files".to_string(), "OpenAIFiles");
+
+    // let submenu = Submenu::new(
+    //     "Menu",
+    //     Menu::new()
+    //         .add_item(main_page)
+    //         .add_item(assistants)
+    //         .add_item(open_ai_files)
+    //         .add_item(samples)
+    //         .add_item(settings),
+    // );
     // let menu = Menu::new().add_submenu(submenu);
     let context = tauri::generate_context!();
-    let menu = tauri::Menu::os_default(&context.package_info().name).add_submenu(submenu);
-
+    // let menu = tauri::Menu::os_default(&context.package_info().name).add_submenu(submenu);
+    
     // let dir = "/home/masatoyuna/nextcloud/chatgpt".to_string();
     // let conversation_dir_path = std::path::Path::new(dir.as_str()).join(DIR_CONVERSATION);
     // let title_dir_path = std::path::Path::new(dir.as_str()).join("titles");
@@ -962,27 +966,29 @@ fn main() {
 
     // return;
     tauri::Builder::default()
-        .menu(menu)
-        .on_menu_event(|event| match event.menu_item_id() {
-            "settings" => {
-                event.window().emit("open_settings", "").unwrap();
-            }
-            "assistants" => {
-                event.window().emit("open_assistants", "").unwrap();
-            }
-            "open_ai_files" => {
-                event.window().emit("open_open_ai_files", "").unwrap();
-            }
-            "samples" => {
-                event.window().emit("open_samples", "").unwrap();
-            }
-            "main" => {
-                event.window().emit("open_main", "").unwrap();
-            }
-            _ => {
-                println!("menu event: {:?}", event.menu_item_id());
-            }
-        })
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
+        // .menu(menu)
+        // .on_menu_event(|event| match event.menu_item_id() {
+        //     "settings" => {
+        //         event.window().emit("open_settings", "").unwrap();
+        //     }
+        //     "assistants" => {
+        //         event.window().emit("open_assistants", "").unwrap();
+        //     }
+        //     "open_ai_files" => {
+        //         event.window().emit("open_open_ai_files", "").unwrap();
+        //     }
+        //     "samples" => {
+        //         event.window().emit("open_samples", "").unwrap();
+        //     }
+        //     "main" => {
+        //         event.window().emit("open_main", "").unwrap();
+        //     }
+        //     _ => {
+        //         println!("menu event: {:?}", event.menu_item_id());
+        //     }
+        // })
         .invoke_handler(tauri::generate_handler![
             save_chat,
             send_message_and_callback_stream,
@@ -1021,6 +1027,72 @@ fn main() {
         ])
         .setup(|app| {
             init_config(app).expect("config init error");
+
+            //setup menu
+            // let main_page = CustomMenuItem::new("main".to_string(), "Main");
+            // let settings = CustomMenuItem::new("settings".to_string(), "Settings");
+            // let assistants = CustomMenuItem::new("assistants".to_string(), "Assistants");
+            // let samples = CustomMenuItem::new("samples".to_string(), "Samples");
+            // let open_ai_files = CustomMenuItem::new("open_ai_files".to_string(), "OpenAIFiles");
+            let main_page = MenuItemBuilder::with_id("main", "Main").build(app)?;
+            let settings = MenuItemBuilder::with_id("settings", "Settings").build(app)?;
+            let assistants = MenuItemBuilder::with_id("assistants", "Assistants").build(app)?;
+            let samples = MenuItemBuilder::with_id("samples", "Samples").build(app)?;
+            let open_ai_files = MenuItemBuilder::with_id("open_ai_files", "OpenAIFiles").build(app)?;
+
+            // let submenu = Submenu::new(
+            //     "Menu",
+            //     Menu::new()
+            //         .add_item(main_page)
+            //         .add_item(assistants)
+            //         .add_item(open_ai_files)
+            //         .add_item(samples)
+            //         .add_item(settings),
+            // );
+            // let menu = Menu::new().add_submenu(submenu);
+            // let context = tauri::generate_context!();
+            // let menu = tauri::Menu::os_default(&context.package_info().name).add_submenu(submenu);
+            let submenu = SubmenuBuilder::new(app, "Menu").items(&[&main_page, &settings, &assistants, &samples, &open_ai_files]).build()?;
+            
+            let toggle = MenuItemBuilder::with_id("toggle", "Toggle").build(app)?;
+                let check = CheckMenuItemBuilder::new("Mark").build(app)?;
+                // let copy=PredefinedMenuItem::copy(app, None)?;
+                let quit=PredefinedMenuItem::quit(app, Some("Quit"))?;
+                let close =PredefinedMenuItem::close_window(app, Some("Close"))?;
+                let menu = MenuBuilder::new(app).items(&[&quit, &close, &submenu]).build()?;
+
+                app.set_menu(menu)?;
+                app.on_menu_event(move |app, event| {
+                    if event.id() == check.id() {
+                        println!("`check` triggered, do something! is checked? {}", check.is_checked().unwrap());
+                    } else if event.id() == "toggle" {
+                        println!("toggle triggered!");
+                    }
+                    if let MenuId(id) = event.id() {
+                        match id.as_str() {
+                            "settings" => {
+                                app.emit("open_settings", "").unwrap();
+                            }
+                            "assistants" => {
+                                app.emit("open_assistants", "").unwrap();
+                            }
+                            "open_ai_files" => {
+                                app.emit("open_open_ai_files", "").unwrap();
+                            }
+                            "samples" => {
+                                app.emit("open_samples", "").unwrap();
+                            }
+                            "main" => {
+                                app.emit("open_main", "").unwrap();
+                            }
+                            _ => {
+                                println!("menu event: {:?}", id);
+                            }
+                        }
+                    }
+                });
+
+                
             Ok(())
         })
         .run(context)

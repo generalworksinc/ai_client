@@ -2,8 +2,8 @@
 // This starter template is using Vue 3 <script setup> SFCs
 // Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
 import Greet from "./components/Greet.vue";
-import { invoke, convertFileSrc } from '@tauri-apps/api/tauri';
-import { open } from '@tauri-apps/api/dialog';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
 //https://tauri.app/v1/api/js/dialog/
 import { emit, listen } from '@tauri-apps/api/event';
 import { useRouter } from 'vue-router';
@@ -831,7 +831,7 @@ const TEMPLATES = [
     </div>
 </template>
 
-<style scoped>
+<style>
 .logo.vite:hover {
     filter: drop-shadow(0 0 2em #747bff);
 }

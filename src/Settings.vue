@@ -1,9 +1,9 @@
 <script setup>
 // This starter template is using Vue 3 <script setup> SFCs
 // Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
-import { invoke, convertFileSrc } from '@tauri-apps/api/tauri'
+import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { useRouter } from 'vue-router';
-import { ref, onMounted, onUnmounted  } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 const router = useRouter();
 
 const api_key = ref("");
@@ -55,7 +55,8 @@ onMounted(async () => {
         </div>
         <div>
             <div>
-                <label for="save_directory" style="width: 100px; vertical-align:bottom; white-space:nowrap;">Saving Directory: </label>
+                <label for="save_directory" style="width: 100px; vertical-align:bottom; white-space:nowrap;">Saving
+                    Directory: </label>
             </div>
             <input id="saving_directory" type="text" v-model="saving_directory" style="width: 100%;">
         </div>
@@ -67,7 +68,7 @@ onMounted(async () => {
     </div>
 </template>
 
-<style scoped>
+<style>
 .logo.vite:hover {
     filter: drop-shadow(0 0 2em #747bff);
 }

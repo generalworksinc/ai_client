@@ -1,6 +1,6 @@
 use crate::constants::{DIR_ASSISTANTS, DIR_OPEN_AI_FILES, DIR_THREADS};
 use crate::models::chat::ChatApiMessage;
-use crate::util::{create_client};
+use crate::util::create_client;
 use crate::SAVING_DIRECTORY;
 use base64::prelude::*;
 use futures::StreamExt;
@@ -8,16 +8,16 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
-use tauri::Window;
+use tauri::{Emitter, Window};
 
 use async_openai::{
     config::OpenAIConfig,
     types::{
         self, AssistantStreamEvent, AssistantToolFileSearchResources, AssistantToolsFileSearch,
-        CreateAssistantRequestArgs,
-        CreateMessageRequestArgs, CreateMessageRequestContent, CreateRunRequestArgs,
-        CreateThreadRequestArgs, FileInput, ImageFile, MessageContentInput, MessageDeltaContent, MessageRole, ModifyAssistantRequest, OpenAIFile,
-        RunObject, SubmitToolOutputsRunRequest, ToolsOutputs,
+        CreateAssistantRequestArgs, CreateMessageRequestArgs, CreateMessageRequestContent,
+        CreateRunRequestArgs, CreateThreadRequestArgs, FileInput, ImageFile, MessageContentInput,
+        MessageDeltaContent, MessageRole, ModifyAssistantRequest, OpenAIFile, RunObject,
+        SubmitToolOutputsRunRequest, ToolsOutputs,
     },
     Client,
 };
