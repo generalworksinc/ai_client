@@ -6,7 +6,7 @@ use rand::{thread_rng, Rng};
 use serde_json::{json, Value};
 
 use serde::Deserialize;
-use tauri::Window;
+use tauri::{Emitter, Window};
 
 use crate::API_KEY;
 use async_openai::{

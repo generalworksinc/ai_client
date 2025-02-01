@@ -2,7 +2,7 @@
 // This starter template is using Vue 3 <script setup> SFCs
 // Check out https://vuejs.org/api/sfc-script-setup.html#script-setup
 import Greet from "./components/Greet.vue";
-import { invoke, convertFileSrc } from '@tauri-apps/api/tauri'
+import { invoke, convertFileSrc } from '@tauri-apps/api/core'
 import { emit, listen } from '@tauri-apps/api/event';
 import { useRouter } from 'vue-router';
 import { ref, nextTick, onMounted, onUnmounted, computed } from "vue";
@@ -559,7 +559,7 @@ const AI_MODELS = [/*'gpt-4-32k',*/ "gpt-4o-mini", "gpt-4", "gpt-4o", "gpt-4-tur
     </div>
 </template>
 
-<style scoped>
+<style>
 .logo.vite:hover {
     filter: drop-shadow(0 0 2em #747bff);
 }

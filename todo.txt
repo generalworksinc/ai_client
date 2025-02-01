@@ -1,3 +1,9 @@
+tauri2対応
+（各OSに必要な事前準備）
+https://v2.tauri.app/start/prerequisites/
+
+
+
 ・画像アップ/image urlアップ後のthreadに、追加質問するとエラーになる問題の対応
 ・threadを保存しなくても削除できるようにする
 　（threadを作成したタイミングで、threadフォルダにファイル保存する）→あとで削除できるように

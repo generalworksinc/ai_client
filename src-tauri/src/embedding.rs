@@ -1,7 +1,7 @@
 use futures::StreamExt;
 
 use serde::Deserialize;
-use tauri::Window;
+use tauri::{Emitter, Window};
 
 use crate::API_KEY;
 use async_openai::{config::OpenAIConfig, types::CreateEmbeddingRequestArgs, Client};

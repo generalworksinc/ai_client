@@ -5,7 +5,7 @@ use core::str;
 use serde_json::json;
 use std::process::Command;
 use std::str::FromStr;
-use tauri::Window;
+use tauri::{Emitter, Window};
 use tempfile::tempdir;
 
 use async_openai::types::{

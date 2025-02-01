@@ -1,7 +1,4 @@
-use std::{
-    fs::File,
-    path::{Path},
-};
+use std::{fs::File, path::Path};
 
 use crate::API_KEY;
 use anyhow::Result;
@@ -16,6 +13,8 @@ pub fn create_client() -> Result<Client<OpenAIConfig>> {
     let api_key = API_KEY
         .read()
         .map_err(|e| anyhow::anyhow!("failed to read API_KEY: {:?}", e))?;
+    let api_key = api_key.clone();
+    println!("api_key: {:?}", api_key);
     Ok(Client::with_config(
         OpenAIConfig::new().with_api_key(api_key.clone()),
     ))

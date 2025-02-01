@@ -1,16 +1,16 @@
 use crate::models::chat::ChatApiMessage;
-use crate::util::{create_client};
+use crate::util::create_client;
 
 use futures::StreamExt;
 use serde::Deserialize;
-use tauri::Window;
+use tauri::{Emitter, Window};
 
 use async_openai::types::{
-        ChatCompletionRequestUserMessageContent, ChatCompletionRequestUserMessageContentPart,ChatCompletionRequestMessageContentPartImageArgs,
-        ChatCompletionRequestMessageContentPartTextArgs, ChatCompletionRequestUserMessageArgs,
-        CreateChatCompletionRequestArgs, ImageDetail,
-        ImageUrlArgs,
-    };
+    ChatCompletionRequestMessageContentPartImageArgs,
+    ChatCompletionRequestMessageContentPartTextArgs, ChatCompletionRequestUserMessageArgs,
+    ChatCompletionRequestUserMessageContent, ChatCompletionRequestUserMessageContentPart,
+    CreateChatCompletionRequestArgs, ImageDetail, ImageUrlArgs,
+};
 
 #[tauri::command]
 pub async fn start_chat(
@@ -86,16 +86,16 @@ async fn exec_chat(
             //     image_url: image_url_build,
             // });
             // let image_url_message: ChatCompletionRequestMessage = ;
-            message_vec.push(
-                ChatCompletionRequestUserMessageContentPart::from(ChatCompletionRequestMessageContentPartImageArgs::default()
+            message_vec.push(ChatCompletionRequestUserMessageContentPart::from(
+                ChatCompletionRequestMessageContentPartImageArgs::default()
                     .image_url(
                         ImageUrlArgs::default()
                             .url(image_url.as_str())
                             .detail(ImageDetail::Auto)
                             .build()?,
                     )
-                    .build()?)
-            );
+                    .build()?,
+            ));
             // let content_vec: Vec<MessageContentInput> = vec![image_url];
             // let image_url_message = CreateMessageRequestArgs::default()
             //     .role(MessageRole::User)

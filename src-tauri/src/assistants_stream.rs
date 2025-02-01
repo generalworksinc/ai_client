@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use std::error::Error;
-use tauri::Window;
+use tauri::{Emitter, Window};
 
 use crate::API_KEY;
 use async_openai::{
