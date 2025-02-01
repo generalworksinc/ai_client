@@ -19,6 +19,7 @@ mod embedding;
 mod models;
 mod open_ai_files;
 mod util;
+mod infrastracture;
 
 use constants::{DIR_CONVERSATION, DIR_THREADS};
 use futures::future;
@@ -917,6 +918,7 @@ fn init_config(app: &tauri::App) -> anyhow::Result<()> {
     Ok(())
 }
 fn main() {
+    infrastracture::logging::init_logging();
     // let main_page = CustomMenuItem::new("main".to_string(), "Main");
     // let settings = CustomMenuItem::new("settings".to_string(), "Settings");
     // let assistants = CustomMenuItem::new("assistants".to_string(), "Assistants");
